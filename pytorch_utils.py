@@ -24,6 +24,7 @@ class SharedMLP(nn.Sequential):
             bn: bool = False,
             activation=nn.ReLU(inplace=True),
             preact: bool = False,
+            first: bool = False,
             name: str = ""
     ):
         super().__init__()
@@ -34,7 +35,7 @@ class SharedMLP(nn.Sequential):
                 Conv2d(
                     args[i],
                     args[i + 1],
-                    bn=bn,
+                    bn=(not first or not preact) and bn,
                     activation=activation,
                     preact=preact
                 )
