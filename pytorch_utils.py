@@ -35,8 +35,9 @@ class SharedMLP(nn.Sequential):
                 Conv2d(
                     args[i],
                     args[i + 1],
-                    bn=(not first or not preact) and bn,
-                    activation=activation,
+                    bn=(not first or not preact or (i != 0)) and bn,
+                    activation=activation
+                    if (not first or not preact or (i != 0)) else None,
                     preact=preact
                 )
             )
