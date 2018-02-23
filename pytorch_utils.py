@@ -361,12 +361,20 @@ def group_model_params(model: nn.Module):
 
 
 def checkpoint_state(model=None, optimizer=None, best_prec=None, epoch=None):
+    optim_state = optimizer.state_dict() if optimizer is not None else None
+    if model is not None:
+        if isinstance(model, torch.nn.DataParallel):
+            model_state = model.module.state_dict()
+        else:
+            model_state = model.state_dict()
+    else:
+        model_state = None
+
     return {
         'epoch': epoch,
         'best_prec': best_prec,
-        'model_state': model.state_dict() if model is not None else None,
-        'optimizer_state': optimizer.state_dict()
-        if optimizer is not None else None
+        'model_state': model_state,
+        'optimizer_state': optim_state
     }
 
 
@@ -658,7 +666,10 @@ class Trainer(object):
             epoch, mode, loss / count
         )
         for k, v in natsorted(eval_dict.items(), key=itemgetter(0)):
-            to_print += "\tMean {}: {:2.3f}%".format(k, stats.mean(v) * 1e2)
+            to_print += "\tMean {}: {:2.3f}%".format(
+                k,
+                np.mean(v, axis=0) * 1e2
+            )
 
         print(to_print)
 
@@ -709,10 +720,10 @@ class Trainer(object):
         for k, v in eval_dict.items():
             if k in self.training_best:
                 self.training_best[k] = max(
-                    self.training_best[k], stats.mean(v)
+                    self.training_best[k], np.mean(v, axis=0)
                 )
             else:
-                self.training_best[k] = stats.mean(v)
+                self.training_best[k] = np.mean(v, axis=0)
 
     def eval_epoch(self, epoch, d_loader):
         if d_loader is None:
@@ -754,9 +765,9 @@ class Trainer(object):
 
         for k, v in eval_dict.items():
             if k in self.eval_best:
-                self.eval_best[k] = max(self.eval_best[k], stats.mean(v))
+                self.eval_best[k] = max(self.eval_best[k], np.mean(v, axis=0))
             else:
-                self.eval_best[k] = stats.mean(v)
+                self.eval_best[k] = np.mean(v, axis=0)
 
         return total_loss / count, eval_dict
 
