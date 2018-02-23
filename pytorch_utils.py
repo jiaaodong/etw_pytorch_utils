@@ -800,7 +800,9 @@ class Trainer(object):
             print("\n{0} Train Epoch {1:0>3d} {0}\n".format("-" * 5, epoch))
             self._train_epoch(epoch, train_loader)
 
-            if test_loader is not None and (epoch % self.eval_frequency) == 0:
+            if test_loader is not None and ((
+                (epoch % self.eval_frequency) == 0) or (epoch == n_epochs)):
+
                 print("\n{0} Eval Epoch {1:0>3d} {0}\n".format("-" * 5, epoch))
                 val_loss, _ = self.eval_epoch(epoch, test_loader)
 
