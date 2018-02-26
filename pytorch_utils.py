@@ -6,7 +6,7 @@ from itertools import repeat
 import numpy as np
 import tensorboard_logger as tb_log
 import shutil, os
-from tqdm import tqdm
+import tqdm
 from natsort import natsorted
 from operator import itemgetter
 from typing import List, Tuple
@@ -661,52 +661,84 @@ class Trainer(object):
             self.logging = False
 
     @staticmethod
-    def _print(mode, epoch, loss, eval_dict, count):
+    def _decode_value(v):
+        if isinstance(v[0], float):
+            return np.mean(v)
+        elif isinstance(v[0], tuple):
+            if len(v[0]) == 3:
+                num = [l[0] for l in v]
+                denom = [l[1] for l in v]
+                w = v[0][2]
+            else:
+                num = [l[0] for l in v]
+                denom = [l[1] for l in v]
+                w = None
+
+            return np.average(
+                np.sum(num, axis=0) / (np.sum(denom, axis=0) + 1e-6), weights=w
+            )
+        else:
+            raise AssertionError("Unkown type:")
+
+    @classmethod
+    def _print(cls, mode, epoch, loss, eval_dict, count):
         to_print = "[{:d}] {}\tMean Loss: {:.4e}".format(
             epoch, mode, loss / count
         )
         for k, v in natsorted(eval_dict.items(), key=itemgetter(0)):
             to_print += "\tMean {}: {:2.3f}%".format(
                 k,
-                np.mean(v, axis=0) * 1e2
+                cls._decode_value(v) * 1e2
             )
 
         print(to_print)
 
-    def _train_epoch(self, epoch, d_loader):
+    def _train_epoch(self, epoch, d_loader, repeats=1):
         self.model.train()
         total_loss = 0.0
         count = 0.0
         eval_dict = {}
 
-        for i, data in tqdm(enumerate(d_loader, 0), total=len(d_loader)):
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step(epoch - 1 + i / len(d_loader))
+        with tqdm.tqdm(total=len(d_loader) * repeats) as pbar:
+            for _ in range(repeats):
+                for i, data in enumerate(d_loader, 0):
+                    if self.lr_scheduler is not None:
+                        self.lr_scheduler.step(epoch - 1 + i / len(d_loader))
 
-            if self.bnm_scheduler is not None:
-                self.bnm_scheduler.step(epoch - 1 + i / len(d_loader))
+                    if self.bnm_scheduler is not None:
+                        self.bnm_scheduler.step(epoch - 1 + i / len(d_loader))
 
-            self.optimizer.zero_grad()
-            _, loss, eval_res = self.model_fn(self.model, data, epoch=epoch)
+                    self.optimizer.zero_grad()
+                    _, loss, eval_res = self.model_fn(
+                        self.model, data, epoch=epoch
+                    )
 
-            loss.backward()
-            self.optimizer.step()
+                    loss.backward()
+                    self.optimizer.step()
 
-            total_loss += loss.data[0]
-            for k, v in eval_res.items():
-                if v is not None:
-                    eval_dict[k] = eval_dict.get(k, []) + [v]
+                    total_loss += loss.data[0]
+                    for k, v in eval_res.items():
+                        if v is not None:
+                            eval_dict[k] = eval_dict.get(k, []) + [v]
 
-            count += 1.0
+                    count += 1.0
 
-            if self.logging:
-                idx = (epoch - 1) * len(d_loader) + i
-                tb_log.log_value("Training loss", loss.data[0], step=idx)
-                for k, v in eval_res.items():
-                    if v is not None:
+                    if self.logging:
+                        idx = (epoch - 1) * len(d_loader) + i
                         tb_log.log_value(
-                            "Training {}".format(k), 1.0 - v, step=idx
+                            "Training loss", loss.data[0], step=idx
                         )
+                        for k, v in eval_res.items():
+                            if v is not None:
+                                tb_log.log_value(
+                                    "Training {}".format(k),
+                                    1.0 - self._decode_value([v]),
+                                    step=idx
+                                )
+
+                    pbar.update()
+
+                epoch += 1
 
         self._print("Train", epoch, total_loss, eval_dict, count)
 
@@ -720,10 +752,10 @@ class Trainer(object):
         for k, v in eval_dict.items():
             if k in self.training_best:
                 self.training_best[k] = max(
-                    self.training_best[k], np.mean(v, axis=0)
+                    self.training_best[k], self._decode_value(v)
                 )
             else:
-                self.training_best[k] = np.mean(v, axis=0)
+                self.training_best[k] = self._decode_value(v)
 
     def eval_epoch(self, epoch, d_loader):
         if d_loader is None:
@@ -734,7 +766,7 @@ class Trainer(object):
         eval_dict = {}
         count = 0.0
 
-        for i, data in tqdm(enumerate(d_loader, 0), total=len(d_loader)):
+        for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader)):
             self.optimizer.zero_grad()
 
             _, loss, eval_res = self.model_fn(
@@ -752,7 +784,11 @@ class Trainer(object):
                 tb_log.log_value("Eval loss", loss.data[0], step=idx)
                 for k, v in eval_res.items():
                     if v is not None:
-                        tb_log.log_value("Eval {}".format(k), 1.0 - v, step=idx)
+                        tb_log.log_value(
+                            "Eval {}".format(k),
+                            1.0 - self._decode_value([v]),
+                            step=idx
+                        )
 
         self._print("Eval", epoch, total_loss, eval_dict, count)
 
@@ -765,9 +801,11 @@ class Trainer(object):
 
         for k, v in eval_dict.items():
             if k in self.eval_best:
-                self.eval_best[k] = max(self.eval_best[k], np.mean(v, axis=0))
+                self.eval_best[k] = max(
+                    self.eval_best[k], self._decode_value(v)
+                )
             else:
-                self.eval_best[k] = np.mean(v, axis=0)
+                self.eval_best[k] = self._decode_value(v)
 
         return total_loss / count, eval_dict
 
@@ -795,14 +833,12 @@ class Trainer(object):
         best_loss : float
             Testing loss of the best model
         """
-        for epoch in range(start_epoch, n_epochs + 1):
+        for epoch in range(start_epoch, n_epochs + 1, self.eval_frequency):
 
             print("\n{0} Train Epoch {1:0>3d} {0}\n".format("-" * 5, epoch))
-            self._train_epoch(epoch, train_loader)
+            self._train_epoch(epoch, train_loader, self.eval_frequency)
 
-            if test_loader is not None and ((
-                (epoch % self.eval_frequency) == 0) or (epoch == n_epochs)):
-
+            if test_loader is not None:
                 print("\n{0} Eval Epoch {1:0>3d} {0}\n".format("-" * 5, epoch))
                 val_loss, _ = self.eval_epoch(epoch, test_loader)
 
