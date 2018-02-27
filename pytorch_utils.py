@@ -691,7 +691,7 @@ class Trainer(object):
                 cls._decode_value(v) * 1e2
             )
 
-        print(to_print)
+        print(to_print, flush=True)
 
     def _train_epoch(self, epoch, d_loader, repeats=1):
         self.model.train()
@@ -835,11 +835,11 @@ class Trainer(object):
         """
         for epoch in range(start_epoch, n_epochs + 1, self.eval_frequency):
 
-            print("\n{0} Train Epoch {1:0>3d} {0}\n".format("-" * 5, epoch))
+            print("\n{0} Train Epoch {1:0>3d} {0}\n".format("-" * 5, epoch), flush=True)
             self._train_epoch(epoch, train_loader, self.eval_frequency)
 
             if test_loader is not None:
-                print("\n{0} Eval Epoch {1:0>3d} {0}\n".format("-" * 5, epoch))
+                print("\n{0} Eval Epoch {1:0>3d} {0}\n".format("-" * 5, epoch), flush=True)
                 val_loss, _ = self.eval_epoch(epoch, test_loader)
 
                 is_best = val_loss < best_loss
@@ -853,7 +853,7 @@ class Trainer(object):
                     bestname=self.best_name
                 )
 
-        print("{0} Results {0}".format("-" * 5))
+        print("{0} Results {0}".format("-" * 5), flush=True)
 
         print("** Training **")
         for k, v in self.training_best.items():
