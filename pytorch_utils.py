@@ -341,7 +341,7 @@ class _FeatureDropoutNoScaling(_DropoutNoScaling):
 feature_dropout_no_scaling = _FeatureDropoutNoScaling.apply
 
 
-def group_model_params(model: nn.Module):
+def group_model_params(model: nn.Module, **kwargs):
     decay_group = []
     no_decay_group = []
 
@@ -355,8 +355,8 @@ def group_model_params(model: nn.Module):
               ) == len(decay_group) + len(no_decay_group)
 
     return [
-        dict(params=decay_group),
-        dict(params=no_decay_group, weight_decay=0.0)
+        dict(params=decay_group, **kwargs),
+        dict(params=no_decay_group, weight_decay=0.0, **kwargs)
     ]
 
 
