@@ -32,7 +32,7 @@ class SharedMLP(nn.Sequential):
         for i in range(len(args) - 1):
             self.add_module(
                 name + 'layer{}'.format(i),
-                Conv2d(
+                Conv1d(
                     args[i],
                     args[i + 1],
                     bn=(not first or not preact or (i != 0)) and bn,
@@ -835,11 +835,17 @@ class Trainer(object):
         """
         for epoch in range(start_epoch, n_epochs + 1, self.eval_frequency):
 
-            print("\n{0} Train Epoch {1:0>3d} {0}\n".format("-" * 5, epoch), flush=True)
+            print(
+                "\n{0} Train Epoch {1:0>3d} {0}\n".format("-" * 5, epoch),
+                flush=True
+            )
             self._train_epoch(epoch, train_loader, self.eval_frequency)
 
             if test_loader is not None:
-                print("\n{0} Eval Epoch {1:0>3d} {0}\n".format("-" * 5, epoch), flush=True)
+                print(
+                    "\n{0} Eval Epoch {1:0>3d} {0}\n".format("-" * 5, epoch),
+                    flush=True
+                )
                 val_loss, _ = self.eval_epoch(epoch, test_loader)
 
                 is_best = val_loss < best_loss
