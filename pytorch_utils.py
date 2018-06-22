@@ -13,6 +13,7 @@ from typing import List, Tuple
 from scipy.stats import t as student_t
 import statistics as stats
 import math
+from .visdomviz import VisdomViz
 
 
 class SharedMLP(nn.Sequential):
@@ -32,7 +33,7 @@ class SharedMLP(nn.Sequential):
         for i in range(len(args) - 1):
             self.add_module(
                 name + 'layer{}'.format(i),
-                Conv1d(
+                Conv2d(
                     args[i],
                     args[i + 1],
                     bn=(not first or not preact or (i != 0)) and bn,
@@ -360,7 +361,9 @@ def group_model_params(model: nn.Module, **kwargs):
     ]
 
 
-def checkpoint_state(model=None, optimizer=None, best_prec=None, epoch=None):
+def checkpoint_state(
+        model=None, optimizer=None, best_prec=None, epoch=None, it=None
+):
     optim_state = optimizer.state_dict() if optimizer is not None else None
     if model is not None:
         if isinstance(model, torch.nn.DataParallel):
@@ -372,6 +375,7 @@ def checkpoint_state(model=None, optimizer=None, best_prec=None, epoch=None):
 
     return {
         'epoch': epoch,
+        'it': it,
         'best_prec': best_prec,
         'model_state': model_state,
         'optimizer_state': optim_state
@@ -393,6 +397,7 @@ def load_checkpoint(model=None, optimizer=None, filename='checkpoint'):
         print("==> Loading from checkpoint '{}'".format(filename))
         checkpoint = torch.load(filename)
         epoch = checkpoint['epoch']
+        it = checkpoint.get('it', 0.0)
         best_prec = checkpoint['best_prec']
         if model is not None and checkpoint['model_state'] is not None:
             model.load_state_dict(checkpoint['model_state'])
@@ -402,7 +407,7 @@ def load_checkpoint(model=None, optimizer=None, filename='checkpoint'):
     else:
         print("==> Checkpoint '{}' not found".format(filename))
 
-    return epoch, best_prec
+    return it, epoch, best_prec
 
 
 def variable_size_collate(pad_val=0, use_shared_memory=True):
@@ -642,8 +647,8 @@ class Trainer(object):
             best_name="best",
             lr_scheduler=None,
             bnm_scheduler=None,
-            eval_frequency=1,
-            log_name=None
+            eval_frequency=-1,
+            viz=None
     ):
         self.model, self.model_fn, self.optimizer, self.lr_scheduler, self.bnm_scheduler = (
             model, model_fn, optimizer, lr_scheduler, bnm_scheduler
@@ -653,12 +658,7 @@ class Trainer(object):
         self.eval_frequency = eval_frequency
 
         self.training_best, self.eval_best = {}, {}
-
-        if log_name is not None:
-            tb_log.configure(log_name)
-            self.logging = True
-        else:
-            self.logging = False
+        self.viz = viz
 
     @staticmethod
     def _decode_value(v):
@@ -678,100 +678,36 @@ class Trainer(object):
                 np.sum(num, axis=0) / (np.sum(denom, axis=0) + 1e-6), weights=w
             )
         else:
-            raise AssertionError("Unkown type:")
+            raise AssertionError("Unknown type: {}".format(type(v)))
 
-    @classmethod
-    def _print(cls, mode, epoch, loss, eval_dict, count):
-        to_print = "[{:d}] {}\tMean Loss: {:.4e}".format(
-            epoch, mode, loss / count
-        )
-        for k, v in natsorted(eval_dict.items(), key=itemgetter(0)):
-            to_print += "\tMean {}: {:2.3f}%".format(
-                k,
-                cls._decode_value(v) * 1e2
-            )
-
-        print(to_print, flush=True)
-
-    def _train_epoch(self, epoch, d_loader, repeats=1):
+    def _train_it(self, it, batch):
         self.model.train()
-        total_loss = 0.0
-        count = 0.0
-        eval_dict = {}
 
-        with tqdm.tqdm(total=len(d_loader) * repeats) as pbar:
-            for _ in range(repeats):
-                for i, data in enumerate(d_loader, 0):
-                    if self.lr_scheduler is not None:
-                        self.lr_scheduler.step(epoch - 1 + i / len(d_loader))
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.step(it)
 
-                    if self.bnm_scheduler is not None:
-                        self.bnm_scheduler.step(epoch - 1 + i / len(d_loader))
+        if self.bnm_scheduler is not None:
+            self.bnm_scheduler.step(it)
 
-                    self.optimizer.zero_grad()
-                    _, loss, eval_res = self.model_fn(
-                        self.model, data, epoch=epoch
-                    )
+        self.optimizer.zero_grad()
+        _, loss, eval_res = self.model_fn(self.model, batch)
 
-                    loss.backward()
-                    self.optimizer.step()
+        loss.backward()
+        self.optimizer.step()
 
-                    total_loss += loss.data[0]
-                    for k, v in eval_res.items():
-                        if v is not None:
-                            eval_dict[k] = eval_dict.get(k, []) + [v]
+        return eval_res
 
-                    count += 1.0
-
-                    if self.logging:
-                        idx = (epoch - 1) * len(d_loader) + i
-                        tb_log.log_value(
-                            "Training loss", loss.data[0], step=idx
-                        )
-                        for k, v in eval_res.items():
-                            if v is not None:
-                                tb_log.log_value(
-                                    "Training {}".format(k),
-                                    1.0 - self._decode_value([v]),
-                                    step=idx
-                                )
-
-                    pbar.update()
-
-                epoch += 1
-
-        self._print("Train", epoch, total_loss, eval_dict, count)
-
-        if 'loss' in self.training_best:
-            self.training_best['loss'] = min(
-                self.training_best['loss'], total_loss / count
-            )
-        else:
-            self.training_best['loss'] = total_loss / count
-
-        for k, v in eval_dict.items():
-            if k in self.training_best:
-                self.training_best[k] = max(
-                    self.training_best[k], self._decode_value(v)
-                )
-            else:
-                self.training_best[k] = self._decode_value(v)
-
-    def eval_epoch(self, epoch, d_loader):
-        if d_loader is None:
-            return
-
+    def eval_epoch(self, d_loader):
         self.model.eval()
-        total_loss = 0.0
-        eval_dict = {}
-        count = 0.0
 
-        for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader)):
+        eval_dict = {}
+        total_loss = 0.0
+        count = 1.0
+        for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader),
+                                 leave=False, desc='val'):
             self.optimizer.zero_grad()
 
-            _, loss, eval_res = self.model_fn(
-                self.model, data, eval=True, epoch=epoch
-            )
+            _, loss, eval_res = self.model_fn(self.model, data, eval=True)
 
             total_loss += loss.data[0]
             count += 1
@@ -779,38 +715,11 @@ class Trainer(object):
                 if v is not None:
                     eval_dict[k] = eval_dict.get(k, []) + [v]
 
-            if self.logging:
-                idx = (epoch - 1) * len(d_loader) + i
-                tb_log.log_value("Eval loss", loss.data[0], step=idx)
-                for k, v in eval_res.items():
-                    if v is not None:
-                        tb_log.log_value(
-                            "Eval {}".format(k),
-                            1.0 - self._decode_value([v]),
-                            step=idx
-                        )
-
-        self._print("Eval", epoch, total_loss, eval_dict, count)
-
-        if 'loss' in self.eval_best:
-            self.eval_best['loss'] = min(
-                self.eval_best['loss'], total_loss / count
-            )
-        else:
-            self.eval_best['loss'] = total_loss / count
-
-        for k, v in eval_dict.items():
-            if k in self.eval_best:
-                self.eval_best[k] = max(
-                    self.eval_best[k], self._decode_value(v)
-                )
-            else:
-                self.eval_best[k] = self._decode_value(v)
-
         return total_loss / count, eval_dict
 
     def train(
             self,
+            start_it,
             start_epoch,
             n_epochs,
             train_loader,
@@ -833,45 +742,52 @@ class Trainer(object):
         best_loss : float
             Testing loss of the best model
         """
-        for epoch in range(start_epoch, n_epochs + 1, self.eval_frequency):
 
-            print(
-                "\n{0} Train Epoch {1:0>3d} {0}\n".format("-" * 5, epoch),
-                flush=True
-            )
-            self._train_epoch(epoch, train_loader, self.eval_frequency)
+        eval_frequency = (
+            self.eval_frequency
+            if self.eval_frequency > 0 else len(train_loader)
+        )
 
-            if test_loader is not None:
-                print(
-                    "\n{0} Eval Epoch {1:0>3d} {0}\n".format("-" * 5, epoch),
-                    flush=True
-                )
-                val_loss, _ = self.eval_epoch(epoch, test_loader)
+        it = start_it
+        with tqdm.trange(start_epoch, n_epochs + 1, desc='epochs') as tbar, \
+                tqdm.tqdm(total=eval_frequency, leave=False, desc='train') as pbar:
 
-                is_best = val_loss < best_loss
-                best_loss = min(best_loss, val_loss)
-                save_checkpoint(
-                    checkpoint_state(
-                        self.model, self.optimizer, val_loss, epoch
-                    ),
-                    is_best,
-                    filename=self.checkpoint_name,
-                    bestname=self.best_name
-                )
+            for epoch in tbar:
+                for batch in train_loader:
+                    res = self._train_it(it, batch)
+                    it += 1
 
-        print("{0} Results {0}".format("-" * 5), flush=True)
+                    pbar.update()
+                    pbar.set_postfix(dict(total_it=it))
+                    tbar.refresh()
 
-        print("** Training **")
-        for k, v in self.training_best.items():
-            if k == 'loss':
-                print("Best loss: {:.4e}".format(v))
-            else:
-                print("Best {}: {:2.3f}%".format(k, v * 1e2))
+                    if self.viz is not None:
+                        self.viz.update('train', it, res)
 
-        print("\n\n** Eval **")
-        for k, v in self.eval_best.items():
-            if k == 'loss':
-                print("Best loss: {:.4e}".format(v))
-            else:
-                print("Best {}: {:2.3f}%".format(k, v * 1e2))
+                    if (it % eval_frequency) == 0:
+                        pbar.close()
+
+                        if test_loader is not None:
+                            val_loss, res = self.eval_epoch(test_loader)
+
+                            if self.viz is not None:
+                                self.viz.update('val', it, res)
+
+                            is_best = val_loss < best_loss
+                            best_loss = min(best_loss, val_loss)
+                            save_checkpoint(
+                                checkpoint_state(
+                                    self.model, self.optimizer, val_loss, epoch,
+                                    it
+                                ),
+                                is_best,
+                                filename=self.checkpoint_name,
+                                bestname=self.best_name
+                            )
+
+                        pbar = tqdm.tqdm(
+                            total=eval_frequency, leave=False, desc='train'
+                        )
+                        pbar.set_postfix(dict(total_it=it))
+
         return best_loss

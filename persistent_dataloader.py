@@ -48,10 +48,17 @@ def _worker_loop(
     if init_fn is not None:
         init_fn(worker_id)
 
+    try:
+        dataset.init()
+    except AttributeError:
+        pass
+
     while True:
         r = index_queue.get()
+
         if r is None:
             break
+
         idx, batch_indices = r
         try:
             samples = collate_fn([dataset[i] for i in batch_indices])
