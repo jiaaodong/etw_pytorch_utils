@@ -1,5 +1,6 @@
 import numpy as np
 import visdom
+import time
 
 
 class VisdomViz(object):
@@ -11,9 +12,14 @@ class VisdomViz(object):
         print('Initializing vizdom env [{}]'.format(env_name))
         print('server: {}, port: {}'.format(server, port))
 
-        self.viz = visdom.Visdom(server=server, port=port, env=env_name)
+        self.viz = visdom.Visdom(
+            server=server, port=port, env=env_name, use_incoming_socket=False
+        )
         self.wins = {}
         self.update_callbacks = {}
+        self.last_update_time = 0
+        self.update_interval = 1.0
+        self.update_cache = {}
         print('<=====')
 
     def text(self, _text, win=None):
@@ -32,7 +38,26 @@ class VisdomViz(object):
         for name, cb in cbs.items():
             self.add_callback(name, cb)
 
+
     def append_element(self, window_name, x, y, line_name, xlabel='iterations'):
+        key = '{}/{}'.format(window_name, line_name)
+        if key not in self.update_cache:
+            self.update_cache[key] = ([x], [y], xlabel)
+        else:
+            x_prev, y_prev, _ = self.update_cache[key]
+            self.update_cache[key] = (x_prev + [x], y_prev + [y], xlabel)
+
+        if time.perf_counter() - self.last_update_time > self.update_interval:
+            for k, v in self.update_cache.items():
+                win_name, line_name = k.split('/')
+                x, y, xlabel = v
+                self._append_element(win_name, x,y,line_name, xlabel)
+
+            self.last_update_time = time.perf_counter()
+            self.update_cache = {}
+
+
+    def _append_element(self, window_name, x, y, line_name, xlabel='iterations'):
         r"""
             Appends an element to a line
 
@@ -50,16 +75,17 @@ class VisdomViz(object):
         """
 
         if window_name in self.wins:
-            self.viz.updateTrace(
-                X=np.array([x]),
-                Y=np.array([y]),
+            self.viz.line(
+                X=np.array(x),
+                Y=np.array(y),
                 win=self.wins[window_name],
-                name=line_name
+                name=line_name,
+                update='append'
             )
         else:
             self.wins[window_name] = self.viz.line(
-                X=np.array([x]),
-                Y=np.array([y]),
+                X=np.array(x),
+                Y=np.array(y),
                 opts=dict(
                     xlabel=xlabel,
                     ylabel=window_name,

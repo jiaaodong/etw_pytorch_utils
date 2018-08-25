@@ -4,7 +4,6 @@ from torch.autograd import Variable
 from torch.autograd.function import InplaceFunction
 from itertools import repeat
 import numpy as np
-import tensorboard_logger as tb_log
 import shutil, os
 import tqdm
 from natsort import natsorted
@@ -709,7 +708,7 @@ class Trainer(object):
 
             _, loss, eval_res = self.model_fn(self.model, data, eval=True)
 
-            total_loss += loss.data[0]
+            total_loss += loss.item()
             count += 1
             for k, v in eval_res.items():
                 if v is not None:
