@@ -33,7 +33,7 @@ class VisdomViz(object):
             self, env_name='main', *, server='http://localhost', port=8097
     ):
         print('=====>')
-        print('Initializing vizdom env [{}]'.format(env_name))
+        print('Initializing visdom env [{}]'.format(env_name))
         print('server: {}, port: {}'.format(server, port))
 
         self.default_vzcb = _DefaultVizCallback()
