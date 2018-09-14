@@ -3,6 +3,30 @@ import visdom
 import time
 
 
+class _DefaultVizCallback(object):
+
+    def __init__(self):
+        self.train_vals = {}
+        self.train_emas = {}
+        self.ema_beta = 0.25
+
+    def __call__(self, viz, mode, it, k, v):
+        if mode == 'train':
+            self.train_emas[k] = (
+                self.ema_beta * v +
+                (1.0 - self.ema_beta) * self.train_emas.get(k, v)
+            )
+            self.train_vals[k] = self.train_vals.get(k, []) + [v]
+            viz.append_element('train', it, self.train_emas[k], k)
+
+        elif mode == 'val':
+            viz.append_element(k, it, np.mean(np.array(v)), 'val')
+            viz.append_element(
+                k, it, np.mean(np.array(self.train_vals[k])), 'train'
+            )
+            self.train_vals[k] = []
+
+
 class VisdomViz(object):
 
     def __init__(
@@ -11,6 +35,8 @@ class VisdomViz(object):
         print('=====>')
         print('Initializing vizdom env [{}]'.format(env_name))
         print('server: {}, port: {}'.format(server, port))
+
+        self.default_vzcb = _DefaultVizCallback()
 
         self.viz = visdom.Visdom(
             server=server, port=port, env=env_name, use_incoming_socket=False
@@ -29,6 +55,8 @@ class VisdomViz(object):
         for k, v in eval_dict.items():
             if k in self.update_callbacks:
                 self.update_callbacks[k](self, mode, it, k, v)
+            else:
+                self.default_vzcb(self, mode, it, k, v)
 
     def add_callback(self, name, cb):
         self.update_callbacks[name] = cb
@@ -37,7 +65,6 @@ class VisdomViz(object):
         cbs = {**cbs, **kwargs}
         for name, cb in cbs.items():
             self.add_callback(name, cb)
-
 
     def append_element(self, window_name, x, y, line_name, xlabel='iterations'):
         key = '{}/{}'.format(window_name, line_name)
@@ -51,13 +78,14 @@ class VisdomViz(object):
             for k, v in self.update_cache.items():
                 win_name, line_name = k.split('/')
                 x, y, xlabel = v
-                self._append_element(win_name, x,y,line_name, xlabel)
+                self._append_element(win_name, x, y, line_name, xlabel)
 
             self.last_update_time = time.perf_counter()
             self.update_cache = {}
 
-
-    def _append_element(self, window_name, x, y, line_name, xlabel='iterations'):
+    def _append_element(
+            self, window_name, x, y, line_name, xlabel='iterations'
+    ):
         r"""
             Appends an element to a line
 
