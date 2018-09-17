@@ -49,8 +49,8 @@ class _BNBase(nn.Sequential):
         super().__init__()
         self.add_module(name + "bn", batch_norm(in_size))
 
-        nn.init.constant(self[0].weight, 1.0)
-        nn.init.constant(self[0].bias, 0)
+        nn.init.constant_(self[0].weight, 1.0)
+        nn.init.constant_(self[0].bias, 0)
 
 
 class BatchNorm1d(_BNBase):
@@ -102,7 +102,7 @@ class _ConvBase(nn.Sequential):
         )
         init(conv_unit.weight)
         if bias:
-            nn.init.constant(conv_unit.bias, 0)
+            nn.init.constant_(conv_unit.bias, 0)
 
         if bn:
             if not preact:
@@ -139,7 +139,7 @@ class Conv1d(_ConvBase):
             padding: int = 0,
             activation=nn.ReLU(inplace=True),
             bn: bool = False,
-            init=nn.init.kaiming_normal,
+            init=nn.init.kaiming_normal_,
             bias: bool = True,
             preact: bool = False,
             name: str = ""
@@ -173,7 +173,7 @@ class Conv2d(_ConvBase):
             padding: Tuple[int, int] = (0, 0),
             activation=nn.ReLU(inplace=True),
             bn: bool = False,
-            init=nn.init.kaiming_normal,
+            init=nn.init.kaiming_normal_,
             bias: bool = True,
             preact: bool = False,
             name: str = ""
@@ -207,7 +207,7 @@ class Conv3d(_ConvBase):
             padding: Tuple[int, int, int] = (0, 0, 0),
             activation=nn.ReLU(inplace=True),
             bn: bool = False,
-            init=nn.init.kaiming_normal,
+            init=nn.init.kaiming_normal_,
             bias: bool = True,
             preact: bool = False,
             name: str = ""
@@ -248,7 +248,7 @@ class FC(nn.Sequential):
         if init is not None:
             init(fc.weight)
         if not bn:
-            nn.init.constant(fc.bias, 0)
+            nn.init.constant_(fc.bias, 0)
 
         if preact:
             if bn:
