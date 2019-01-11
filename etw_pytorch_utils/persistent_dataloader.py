@@ -1,9 +1,8 @@
 import torch
 import torch.multiprocessing as multiprocessing
-import torch._C as C
-from torch.utils.data.sampler import SequentialSampler, RandomSampler, BatchSampler
+from torch.utils.data.sampler import (SequentialSampler, RandomSampler,
+                                      BatchSampler)
 import signal
-import functools
 import collections
 import re
 import sys
@@ -18,6 +17,7 @@ else:
 
 _mp_ctx = multiprocessing.get_context('forkserver')
 
+
 class ExceptionWrapper(object):
     r"Wraps an exception plus traceback to communicate across threads"
 
@@ -30,9 +30,8 @@ _use_shared_memory = False
 """Whether to use shared memory in default_collate"""
 
 
-def _worker_loop(
-        dataset, index_queue, data_queue, collate_fn, seed, init_fn, worker_id
-):
+def _worker_loop(dataset, index_queue, data_queue, collate_fn, seed, init_fn,
+                 worker_id):
     global _use_shared_memory
     _use_shared_memory = True
 
@@ -68,9 +67,8 @@ def _worker_loop(
             data_queue.put((idx, samples))
 
 
-def _worker_manager_loop(
-        in_queue, out_queue, done_event, pin_memory, device_id
-):
+def _worker_manager_loop(in_queue, out_queue, done_event, pin_memory,
+                         device_id):
     if pin_memory:
         torch.cuda.set_device(device_id)
 
@@ -142,8 +140,7 @@ def default_collate(batch):
         return batch
     elif isinstance(batch[0], collections.Mapping):
         return {
-            key: default_collate([d[key] for d in batch])
-            for key in batch[0]
+            key: default_collate([d[key] for d in batch]) for key in batch[0]
         }
     elif isinstance(batch[0], collections.Sequence):
         transposed = zip(*batch)
@@ -233,9 +230,7 @@ class DataLoaderIter(object):
             except queue.Empty:
                 raise RuntimeError(
                     'DataLoader timed out after {} seconds'.format(
-                        self.timeout
-                    )
-                )
+                        self.timeout))
         else:
             return self.data_queue.get()
 
@@ -337,20 +332,18 @@ class DataLoader(object):
                  unpicklable object, e.g., a lambda function.
     """
 
-    def __init__(
-            self,
-            dataset,
-            batch_size=1,
-            shuffle=False,
-            sampler=None,
-            batch_sampler=None,
-            num_workers=0,
-            collate_fn=default_collate,
-            pin_memory=False,
-            drop_last=False,
-            timeout=0,
-            worker_init_fn=None
-    ):
+    def __init__(self,
+                 dataset,
+                 batch_size=1,
+                 shuffle=False,
+                 sampler=None,
+                 batch_sampler=None,
+                 num_workers=0,
+                 collate_fn=default_collate,
+                 pin_memory=False,
+                 drop_last=False,
+                 timeout=0,
+                 worker_init_fn=None):
         self.dataset = dataset
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -365,19 +358,15 @@ class DataLoader(object):
 
         if batch_sampler is not None:
             if batch_size > 1 or shuffle or sampler is not None or drop_last:
-                raise ValueError(
-                    'batch_sampler is mutually exclusive with '
-                    'batch_size, shuffle, sampler, and drop_last'
-                )
+                raise ValueError('batch_sampler is mutually exclusive with '
+                                 'batch_size, shuffle, sampler, and drop_last')
 
         if sampler is not None and shuffle:
             raise ValueError('sampler is mutually exclusive with shuffle')
 
         if self.num_workers < 0:
-            raise ValueError(
-                'num_workers cannot be negative; '
-                'use num_workers=0 to disable multiprocessing.'
-            )
+            raise ValueError('num_workers cannot be negative; '
+                             'use num_workers=0 to disable multiprocessing.')
 
         if batch_sampler is None:
             if sampler is None:
@@ -413,12 +402,10 @@ class DataLoader(object):
             self.workers = [
                 _mp_ctx.Process(
                     target=_worker_loop,
-                    args=(
-                        self.dataset, self.index_queue,
-                        self.worker_result_queue, self.collate_fn,
-                        base_seed + i, self.worker_init_fn, i
-                    )
-                ) for i in range(self.num_workers)
+                    args=(self.dataset, self.index_queue,
+                          self.worker_result_queue, self.collate_fn,
+                          base_seed + i, self.worker_init_fn, i))
+                for i in range(self.num_workers)
             ]
 
             if self.pin_memory or self.timeout > 0:
@@ -430,11 +417,8 @@ class DataLoader(object):
                     maybe_device_id = None
                 self.worker_manager_thread = threading.Thread(
                     target=_worker_manager_loop,
-                    args=(
-                        self.worker_result_queue, self.data_queue,
-                        self.done_event, self.pin_memory, maybe_device_id
-                    )
-                )
+                    args=(self.worker_result_queue, self.data_queue,
+                          self.done_event, self.pin_memory, maybe_device_id))
                 self.worker_manager_thread.daemon = True
                 self.worker_manager_thread.start()
             else:

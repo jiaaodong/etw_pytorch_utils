@@ -14,24 +14,21 @@ class _DefaultVizCallback(object):
         if mode == 'train':
             self.train_emas[k] = (
                 self.ema_beta * v +
-                (1.0 - self.ema_beta) * self.train_emas.get(k, v)
-            )
+                (1.0 - self.ema_beta) * self.train_emas.get(k, v))
             self.train_vals[k] = self.train_vals.get(k, []) + [v]
             viz.append_element('train', it, self.train_emas[k], k)
 
         elif mode == 'val':
             viz.append_element(k, it, np.mean(np.array(v)), 'val')
-            viz.append_element(
-                k, it, np.mean(np.array(self.train_vals[k])), 'train'
-            )
+            viz.append_element(k, it, np.mean(np.array(self.train_vals[k])),
+                               'train')
             self.train_vals[k] = []
 
 
 class VisdomViz(object):
 
-    def __init__(
-            self, env_name='main', *, server='http://localhost', port=8097
-    ):
+    def __init__(self, env_name='main', *, server='http://localhost',
+                 port=8097):
         print('=====>')
         print('Initializing visdom env [{}]'.format(env_name))
         print('server: {}, port: {}'.format(server, port))
@@ -39,8 +36,7 @@ class VisdomViz(object):
         self.default_vzcb = _DefaultVizCallback()
 
         self.viz = visdom.Visdom(
-            server=server, port=port, env=env_name, use_incoming_socket=False
-        )
+            server=server, port=port, env=env_name, use_incoming_socket=False)
         self.wins = {}
         self.update_callbacks = {}
         self.last_update_time = 0
@@ -83,9 +79,8 @@ class VisdomViz(object):
             self.last_update_time = time.perf_counter()
             self.update_cache = {}
 
-    def _append_element(
-            self, window_name, x, y, line_name, xlabel='iterations'
-    ):
+    def _append_element(self, window_name, x, y, line_name,
+                        xlabel='iterations'):
         r"""
             Appends an element to a line
 
@@ -101,6 +96,10 @@ class VisdomViz(object):
             Name of line
         xlabel: str
         """
+        if (window_name not in self.wins and
+                self.viz.win_exists(win=window_name)):
+            self.wins[window_name] = self.viz.get_window_data(win=window_name)
+            print(self.wins[window_name])
 
         if window_name in self.wins:
             self.viz.line(
@@ -108,8 +107,7 @@ class VisdomViz(object):
                 Y=np.array(y),
                 win=self.wins[window_name],
                 name=line_name,
-                update='append'
-            )
+                update='append')
         else:
             self.wins[window_name] = self.viz.line(
                 X=np.array(x),
@@ -122,6 +120,4 @@ class VisdomViz(object):
                     marginright=30,
                     marginbottom=30,
                     margintop=30,
-                    legend=[line_name]
-                )
-            )
+                    legend=[line_name]))
