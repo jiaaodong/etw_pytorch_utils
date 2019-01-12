@@ -1,6 +1,10 @@
 import numpy as np
 import visdom
 import time
+from tqdm import tqdm
+import collections
+
+__all__ = ['VisdomViz', 'CmdLineViz']
 
 
 class _DefaultVizCallback(object):
@@ -96,11 +100,6 @@ class VisdomViz(object):
             Name of line
         xlabel: str
         """
-        if (window_name not in self.wins and
-                self.viz.win_exists(win=window_name)):
-            self.wins[window_name] = self.viz.get_window_data(win=window_name)
-            print(self.wins[window_name])
-
         if window_name in self.wins:
             self.viz.line(
                 X=np.array(x),
@@ -121,3 +120,78 @@ class VisdomViz(object):
                     marginbottom=30,
                     margintop=30,
                     legend=[line_name]))
+
+    def flush(self):
+        pass
+
+
+class _DefaultCmdLineCallback(object):
+
+    def __init__(self):
+        self.train_vals = {}
+
+    def __call__(self, viz, mode, it, k, v):
+        if mode == 'train':
+            self.train_vals[k] = self.train_vals.get(k, []) + [v]
+
+        elif mode == 'val':
+            viz.append_element(k, it, np.mean(np.array(self.train_vals[k])),
+                               'train')
+            viz.append_element(k, it, np.mean(np.array(v)), 'val')
+            self.train_vals[k] = []
+
+
+class CmdLineViz(object):
+
+    def __init__(self):
+        self.default_vzcb = _DefaultCmdLineCallback()
+        self.update_callbacks = {}
+        self.flush_vals = collections.OrderedDict()
+
+    def text(self, _text):
+        print(_text)
+
+    def update(self, mode, it, eval_dict):
+        for k, v in eval_dict.items():
+            if k in self.update_callbacks:
+                self.update_callbacks[k](self, mode, it, k, v)
+            else:
+                self.default_vzcb(self, mode, it, k, v)
+
+    def add_callback(self, name, cb):
+        self.update_callbacks[name] = cb
+
+    def add_callbacks(self, cbs={}, **kwargs):
+        cbs = {**cbs, **kwargs}
+        for name, cb in cbs.items():
+            self.add_callback(name, cb)
+
+    def append_element(self, window_name, x, y, line_name):
+        if not window_name in self.flush_vals:
+            self.flush_vals[window_name] = collections.OrderedDict()
+
+        self.flush_vals[window_name][line_name] = y
+
+    def flush(self):
+        if len(self.flush_vals) == 0:
+            return
+
+        longest_win_name = max(map(lambda k: len(k), self.flush_vals.keys()))
+
+        tqdm.write('=== Training Progress ===')
+
+        for win, lines in self.flush_vals.items():
+            if len(lines) == 0:
+                continue
+
+            _str = '{:<{width}} --- '.format(
+                win, width=longest_win_name)
+            for k, v in lines.items():
+                _str += '{}: {:.4f}\t'.format(k, v)
+
+            tqdm.write(_str)
+
+        tqdm.write(' ')
+        tqdm.write(' ')
+
+        self.flush_vals = collections.OrderedDict()

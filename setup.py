@@ -1,8 +1,12 @@
 from setuptools import setup, find_packages
+import builtins
+
+builtins.__ETW_PT_UTILS_SETUP__ = True
+import etw_pytorch_utils
 
 setup(
     name='etw_pytorch_utils',
-    version='1.0',
+    version=etw_pytorch_utils.__version__,
     author='Erik Wijmans',
     packages=find_packages(),
     install_requires=['numpy', 'scipy', 'tqdm', 'visdom'])

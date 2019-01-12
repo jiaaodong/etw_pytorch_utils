@@ -761,4 +761,6 @@ class Trainer(object):
                             total=eval_frequency, leave=False, desc='train')
                         pbar.set_postfix(dict(total_it=it))
 
+                    self.viz.flush()
+
         return best_loss
