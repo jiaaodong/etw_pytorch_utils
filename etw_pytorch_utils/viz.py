@@ -1,3 +1,4 @@
+from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
 import numpy as np
 import visdom
 import time
@@ -31,7 +32,7 @@ class _DefaultVizCallback(object):
 
 class VisdomViz(object):
 
-    def __init__(self, env_name='main', *, server='http://localhost',
+    def __init__(self, env_name='main', server='http://localhost',
                  port=8097):
         print('=====>')
         print('Initializing visdom env [{}]'.format(env_name))
@@ -62,7 +63,8 @@ class VisdomViz(object):
         self.update_callbacks[name] = cb
 
     def add_callbacks(self, cbs={}, **kwargs):
-        cbs = {**cbs, **kwargs}
+        cbs = dict(cbs)
+        cbs.update(**kwargs)
         for name, cb in cbs.items():
             self.add_callback(name, cb)
 
@@ -162,7 +164,8 @@ class CmdLineViz(object):
         self.update_callbacks[name] = cb
 
     def add_callbacks(self, cbs={}, **kwargs):
-        cbs = {**cbs, **kwargs}
+        cbs = dict(cbs)
+        cbs.update(**kwargs)
         for name, cb in cbs.items():
             self.add_callback(name, cb)
 

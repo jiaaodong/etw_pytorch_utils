@@ -1,3 +1,4 @@
+from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
 import torch
 import torch.multiprocessing as multiprocessing
 from torch.utils.data.sampler import (SequentialSampler, RandomSampler,
@@ -10,12 +11,13 @@ import threading
 import traceback
 from torch._six import string_classes, int_classes
 
+
 if sys.version_info[0] == 2:
     import Queue as queue
+    _mp_ctx = multiprocessing
 else:
     import queue
-
-_mp_ctx = multiprocessing.get_context('forkserver')
+    _mp_ctx = multiprocessing.get_context('forkserver')
 
 
 class ExceptionWrapper(object):

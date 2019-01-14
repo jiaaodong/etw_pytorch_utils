@@ -1,31 +1,36 @@
+from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
 import torch.nn as nn
-from typing import List, Tuple
 from .pytorch_utils import (BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d,
                             Conv2d, Conv3d, FC)
+
+
+if False:
+    # Workaround for type hints without depending on the `typing` module
+    from typing import *
 
 
 class Seq(nn.Sequential):
 
     def __init__(self, input_channels):
-        super().__init__()
+        super(Seq, self).__init__()
         self.count = 0
         self.current_channels = input_channels
 
     def conv1d(self,
-               out_size: int,
-               *,
-               kernel_size: int = 1,
-               stride: int = 1,
-               padding: int = 0,
-               dilation: int = 1,
+               out_size,
+               kernel_size = 1,
+               stride = 1,
+               padding = 0,
+               dilation = 1,
                activation=nn.ReLU(inplace=True),
-               bn: bool = False,
+               bn = False,
                init=nn.init.kaiming_normal_,
-               bias: bool = True,
-               preact: bool = False,
-               name: str = "",
+               bias = True,
+               preact = False,
+               name = "",
                norm_layer=BatchNorm1d):
-
+        # type: (Seq, int, int, int, int, int, Any, bool, Any, bool, bool, AnyStr) -> Seq
+        
         self.add_module(
             str(self.count),
             Conv1d(
@@ -48,20 +53,20 @@ class Seq(nn.Sequential):
         return self
 
     def conv2d(self,
-               out_size: int,
-               *,
-               kernel_size: Tuple[int, int] = (1, 1),
-               stride: Tuple[int, int] = (1, 1),
-               padding: Tuple[int, int] = (0, 0),
-               dilation: Tuple[int, int] = (1, 1),
+               out_size,
+               kernel_size = (1, 1),
+               stride = (1, 1),
+               padding = (0, 0),
+               dilation = (1, 1),
                activation=nn.ReLU(inplace=True),
-               bn: bool = False,
+               bn = False,
                init=nn.init.kaiming_normal_,
-               bias: bool = True,
-               preact: bool = False,
-               name: str = "",
+               bias = True,
+               preact = False,
+               name = "",
                norm_layer=BatchNorm2d):
-
+        # type: (Seq, int, Tuple[int, int], Tuple[int, int], Tuple[int, int], Tuple[int, int], Any, bool, Any, bool, bool, AnyStr) -> Seq
+        
         self.add_module(
             str(self.count),
             Conv2d(
@@ -84,19 +89,19 @@ class Seq(nn.Sequential):
         return self
 
     def conv3d(self,
-               out_size: int,
-               *,
-               kernel_size: Tuple[int, int, int] = (1, 1, 1),
-               stride: Tuple[int, int, int] = (1, 1, 1),
-               padding: Tuple[int, int, int] = (0, 0, 0),
-               dilation: Tuple[int, int, int] = (1, 1, 1),
+               out_size,
+               kernel_size = (1, 1, 1),
+               stride = (1, 1, 1),
+               padding = (0, 0, 0),
+               dilation = (1, 1, 1),
                activation=nn.ReLU(inplace=True),
-               bn: bool = False,
+               bn = False,
                init=nn.init.kaiming_normal_,
-               bias: bool = True,
-               preact: bool = False,
-               name: str = "",
+               bias = True,
+               preact = False,
+               name = "",
                norm_layer=BatchNorm3d):
+        # type: (Seq, int, Tuple[int, int], Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int], Any, bool, Any, bool, bool, AnyStr) -> Seq
 
         self.add_module(
             str(self.count),
@@ -120,13 +125,13 @@ class Seq(nn.Sequential):
         return self
 
     def fc(self,
-           out_size: int,
-           *,
+           out_size,
            activation=nn.ReLU(inplace=True),
-           bn: bool = False,
+           bn = False,
            init=None,
-           preact: bool = False,
-           name: str = ""):
+           preact = False,
+           name = ""):
+        # type: (Seq, int, Any, bool, Any, bool, AnyStr) -> None
 
         self.add_module(
             str(self.count),
@@ -143,6 +148,7 @@ class Seq(nn.Sequential):
         return self
 
     def dropout(self, p=0.5):
+        # type: (Seq, float) -> Seq
 
         self.add_module(str(self.count), nn.Dropout(p=0.5))
         self.count += 1

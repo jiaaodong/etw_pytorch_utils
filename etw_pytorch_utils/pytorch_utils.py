@@ -1,3 +1,4 @@
+from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
 import torch
 import torch.nn as nn
 from torch.autograd.function import InplaceFunction
@@ -10,17 +11,22 @@ from scipy.stats import t as student_t
 import statistics as stats
 
 
+if False:
+    # Workaround for type hints without depending on the `typing` module
+    from typing import *
+
+
 class SharedMLP(nn.Sequential):
 
     def __init__(self,
-                 args: List[int],
-                 *,
-                 bn: bool = False,
+                 args,
+                 bn = False,
                  activation=nn.ReLU(inplace=True),
-                 preact: bool = False,
-                 first: bool = False,
-                 name: str = ""):
-        super().__init__()
+                 preact = False,
+                 first = False,
+                 name = ""):
+        # type: (SharedMLP, List[int], bool, Any, bool, bool, AnyStr) -> None
+        super(SharedMLP, self).__init__()
 
         for i in range(len(args) - 1):
             self.add_module(
@@ -37,7 +43,7 @@ class SharedMLP(nn.Sequential):
 class _BNBase(nn.Sequential):
 
     def __init__(self, in_size, batch_norm=None, name=""):
-        super().__init__()
+        super(_BNBase, self).__init__()
         self.add_module(name + "bn", batch_norm(in_size))
 
         nn.init.constant_(self[0].weight, 1.0)
@@ -46,20 +52,23 @@ class _BNBase(nn.Sequential):
 
 class BatchNorm1d(_BNBase):
 
-    def __init__(self, in_size: int, *, name: str = ""):
-        super().__init__(in_size, batch_norm=nn.BatchNorm1d, name=name)
+    def __init__(self, in_size,  name = ""):
+        # type: (BatchNorm1d, int, AnyStr) -> None
+        super(BatchNorm1d, self).__init__(in_size, batch_norm=nn.BatchNorm1d, name=name)
 
 
 class BatchNorm2d(_BNBase):
 
-    def __init__(self, in_size: int, name: str = ""):
-        super().__init__(in_size, batch_norm=nn.BatchNorm2d, name=name)
+    def __init__(self, in_size, name = ""):
+        # type: (BatchNorm2d, int, AnyStr) -> None
+        super(BatchNorm2d, self).__init__(in_size, batch_norm=nn.BatchNorm2d, name=name)
 
 
 class BatchNorm3d(_BNBase):
 
-    def __init__(self, in_size: int, name: str = ""):
-        super().__init__(in_size, batch_norm=nn.BatchNorm3d, name=name)
+    def __init__(self, in_size, name = ""):
+        # type: (BatchNorm3d, int, AnyStr) -> None
+        super(BatchNorm3d, self).__init__(in_size, batch_norm=nn.BatchNorm3d, name=name)
 
 
 class _ConvBase(nn.Sequential):
@@ -79,7 +88,7 @@ class _ConvBase(nn.Sequential):
                  bias=True,
                  preact=False,
                  name=""):
-        super().__init__()
+        super(_ConvBase, self).__init__()
 
         bias = bias and (not bn)
         conv_unit = conv(
@@ -120,21 +129,21 @@ class _ConvBase(nn.Sequential):
 class Conv1d(_ConvBase):
 
     def __init__(self,
-                 in_size: int,
-                 out_size: int,
-                 *,
-                 kernel_size: int = 1,
-                 stride: int = 1,
-                 padding: int = 0,
-                 dilation: int = 1,
+                 in_size,
+                 out_size,
+                 kernel_size= 1,
+                 stride = 1,
+                 padding = 0,
+                 dilation = 1,
                  activation=nn.ReLU(inplace=True),
-                 bn: bool = False,
+                 bn = False,
                  init=nn.init.kaiming_normal_,
-                 bias: bool = True,
-                 preact: bool = False,
-                 name: str = "",
+                 bias = True,
+                 preact = False,
+                 name = "",
                  norm_layer=BatchNorm1d):
-        super().__init__(
+        # type: (Conv1d, int, int, int, int, int, int, Any, bool, Any, bool, bool, AnyStr, _BNBase) -> None
+        super(Conv1d, self).__init__(
             in_size,
             out_size,
             kernel_size,
@@ -154,21 +163,21 @@ class Conv1d(_ConvBase):
 class Conv2d(_ConvBase):
 
     def __init__(self,
-                 in_size: int,
-                 out_size: int,
-                 *,
-                 kernel_size: Tuple[int, int] = (1, 1),
-                 stride: Tuple[int, int] = (1, 1),
-                 padding: Tuple[int, int] = (0, 0),
-                 dilation: Tuple[int, int] = (1, 1),
+                 in_size,
+                 out_size,
+                 kernel_size = (1, 1),
+                 stride = (1, 1),
+                 padding = (0, 0),
+                 dilation = (1, 1),
                  activation=nn.ReLU(inplace=True),
-                 bn: bool = False,
+                 bn = False,
                  init=nn.init.kaiming_normal_,
-                 bias: bool = True,
-                 preact: bool = False,
-                 name: str = "",
+                 bias = True,
+                 preact = False,
+                 name = "",
                  norm_layer=BatchNorm2d):
-        super().__init__(
+        # type: (Conv2d, int, int, Tuple[int, int], Tuple[int, int], Tuple[int, int], Tuple[int, int], Any, bool, Any, bool, bool, AnyStr, _BNBase) -> None
+        super(Conv2d, self).__init__(
             in_size,
             out_size,
             kernel_size,
@@ -188,21 +197,21 @@ class Conv2d(_ConvBase):
 class Conv3d(_ConvBase):
 
     def __init__(self,
-                 in_size: int,
-                 out_size: int,
-                 *,
-                 kernel_size: Tuple[int, int, int] = (1, 1, 1),
-                 stride: Tuple[int, int, int] = (1, 1, 1),
-                 padding: Tuple[int, int, int] = (0, 0, 0),
-                 dilation: Tuple[int, int, int] = (1, 1, 1),
+                 in_size,
+                 out_size,
+                 kernel_size = (1, 1, 1),
+                 stride = (1, 1, 1),
+                 padding = (0, 0, 0),
+                 dilation = (1, 1, 1),
                  activation=nn.ReLU(inplace=True),
-                 bn: bool = False,
+                 bn = False,
                  init=nn.init.kaiming_normal_,
-                 bias: bool = True,
-                 preact: bool = False,
-                 name: str = "",
+                 bias = True,
+                 preact = False,
+                 name = "",
                  norm_layer=BatchNorm3d):
-        super().__init__(
+        # type: (Conv3d, int, int, Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int], Any, bool, Any, bool, bool, AnyStr, _BNBase) -> None
+        super(Conv3d, self).__init__(
             in_size,
             out_size,
             kernel_size,
@@ -222,15 +231,15 @@ class Conv3d(_ConvBase):
 class FC(nn.Sequential):
 
     def __init__(self,
-                 in_size: int,
-                 out_size: int,
-                 *,
+                 in_size,
+                 out_size,
                  activation=nn.ReLU(inplace=True),
-                 bn: bool = False,
+                 bn = False,
                  init=None,
-                 preact: bool = False,
-                 name: str = ""):
-        super().__init__()
+                 preact = False,
+                 name = ""):
+        # type: (FC, int, int, Any, bool, Any, bool, AnyStr) -> None
+        super(FC, self).__init__()
 
         fc = nn.Linear(in_size, out_size, bias=not bn)
         if init is not None:
@@ -325,7 +334,8 @@ class _FeatureDropoutNoScaling(_DropoutNoScaling):
 feature_dropout_no_scaling = _FeatureDropoutNoScaling.apply
 
 
-def group_model_params(model: nn.Module, **kwargs):
+def group_model_params(model, **kwargs):
+    # type: (nn.Module, ...) -> List[Dict]
     decay_group = []
     no_decay_group = []
 
@@ -478,10 +488,11 @@ class TrainValSplitter():
     """
 
     def __init__(self,
-                 *,
-                 numel: int,
-                 percent_train: float,
-                 shuffled: bool = False):
+                 
+                 numel,
+                 percent_train,
+                 shuffled = False):
+        # type: (TrainValSplitter, int, float, bool) -> None
         indicies = np.array([i for i in range(numel)])
         if shuffled:
             np.random.shuffle(indicies)
@@ -508,7 +519,8 @@ class CrossValSplitter():
             Whether or not to shuffle which data goes in which fold
     """
 
-    def __init__(self, *, numel: int, k_folds: int, shuffled: bool = False):
+    def __init__(self,  numel, k_folds, shuffled= False):
+        # type: (CrossValSplitter, int, int, bool) -> None
         inidicies = np.array([i for i in range(numel)])
         if shuffled:
             np.random.shuffle(inidicies)
@@ -542,7 +554,8 @@ class CrossValSplitter():
 
         self[self.current_v_ind]
 
-    def update_metrics(self, to_post: dict):
+    def update_metrics(self, to_post):
+        # type: (CrossValSplitter, dict) -> None
         for k, v in to_post.items():
             if k in self.metrics:
                 self.metrics[k].append(v)

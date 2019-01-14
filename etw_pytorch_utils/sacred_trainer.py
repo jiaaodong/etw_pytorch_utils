@@ -1,12 +1,17 @@
+from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
 import torch
 import torch.nn as nn
 import numpy as np
 import tqdm
-from typing import List, Tuple
 import sacred
 import os.path as osp
 
 from .pytorch_utils import checkpoint_state
+
+
+if False:
+    # Workaround for type hints without depending on the `typing` module
+    from typing import *
 
 
 class _DefaultExCallback(object):
@@ -16,18 +21,19 @@ class _DefaultExCallback(object):
         self.train_emas = {}
         self.ema_beta = 0.25
 
-    def __call__(self, ex: sacred.Experiment, mode, k, v):
+    def __call__(self, ex, mode, k, v):
+        # type: (_DefaultExCallback, sacred.Experiment, Any, Any, Any) -> None
         if mode == 'train':
             self.train_emas[k] = (
                 self.ema_beta * v +
                 (1.0 - self.ema_beta) * self.train_emas.get(k, v)
             )
             self.train_vals[k] = self.train_vals.get(k, []) + [v]
-            ex.log_scalar(f'training.{k}', self.train_emas[k])
+            ex.log_scalar('training.{k}'.format({'k': k}), self.train_emas[k])
 
         elif mode == 'val':
-            ex.log_scalar(f'val.{k}', np.mean(np.array(v)))
-            ex.log_scalar(f'train.{k}', np.mean(np.array(self.train_vals[k])))
+            ex.log_scalar('val.{k}'.format({'k': k}), np.mean(np.array(v)))
+            ex.log_scalar('train.{k}'.format({'k':k}), np.mean(np.array(self.train_vals[k])))
             self.train_vals[k] = []
 
 
@@ -82,7 +88,8 @@ class SacredTrainer(object):
         self.update_callbacks[name] = cb
 
     def add_callbacks(self, cbs={}, **kwargs):
-        cbs = {**cbs, **kwargs}
+        cbs = dict(cbs)
+        cbs.update(**kwargs)
         for name, cb in cbs.items():
             self.add_callback(name, cb)
 
@@ -140,6 +147,7 @@ class SacredTrainer(object):
             test_loader=None,
             best_loss=1e10
     ):
+    # type: (SacredTrainer, Any, int, int, torch.utils.data.DataLoader, torch.utils.data.DataLoader, float) -> float
         r"""
            Call to begin training the model
 

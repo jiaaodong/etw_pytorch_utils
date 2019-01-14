@@ -1,3 +1,4 @@
+from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
 from setuptools import setup, find_packages
 import builtins
 
@@ -9,4 +10,4 @@ setup(
     version=etw_pytorch_utils.__version__,
     author='Erik Wijmans',
     packages=find_packages(),
-    install_requires=['numpy', 'scipy', 'tqdm', 'visdom'])
+    install_requires=['numpy', 'scipy', 'tqdm', 'visdom', 'future', 'statistics'])

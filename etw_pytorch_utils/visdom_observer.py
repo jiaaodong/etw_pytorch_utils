@@ -1,3 +1,4 @@
+from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
 import numpy as np
 import visdom
 import time
@@ -10,7 +11,7 @@ class VisdomObserver(RunObserver):
     def __init__(
             self, env_name='main', *, server='http://localhost', port=8097
     ):
-        super().__init__()
+        super(VisdomObserver, self).__init__()
         self.env_name, self.server, self.port = (env_name, server, port)
 
     def started_event(
