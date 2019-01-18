@@ -389,6 +389,7 @@ def save_checkpoint(state,
 
 def load_checkpoint(model=None, optimizer=None, filename='checkpoint'):
     filename = "{}.pth.tar".format(filename)
+    
     if os.path.isfile(filename):
         print("==> Loading from checkpoint '{}'".format(filename))
         checkpoint = torch.load(filename)
@@ -400,12 +401,11 @@ def load_checkpoint(model=None, optimizer=None, filename='checkpoint'):
         if optimizer is not None and checkpoint['optimizer_state'] is not None:
             optimizer.load_state_dict(checkpoint['optimizer_state'])
         print("==> Done")
+        return it, epoch, best_prec
     else:
         print("==> Checkpoint '{}' not found".format(filename))
-
-    return it, epoch, best_prec
-
-
+        return None
+    
 def variable_size_collate(pad_val=0, use_shared_memory=True):
     import collections
     _numpy_type_map = {
