@@ -1,5 +1,5 @@
 from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
 try:
     __ETW_PT_UTILS_SETUP__
