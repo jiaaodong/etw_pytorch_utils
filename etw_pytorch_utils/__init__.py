@@ -1,13 +1,15 @@
-from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
-__version__ = '1.1.1'
+from __future__ import (
+    division,
+    absolute_import,
+    with_statement,
+    print_function,
+    unicode_literals,
+)
 
-try:
-    __ETW_PT_UTILS_SETUP__
-except:
-    __ETW_PT_UTILS_SETUP__ = False
+__version__ = "1.1.2"
 
-if not __ETW_PT_UTILS_SETUP__:
-    from .pytorch_utils import *
-    from .persistent_dataloader import DataLoader
-    from .viz import *
-    from .seq import Seq
+
+from .pytorch_utils import *
+from .persistent_dataloader import DataLoader
+from .viz import *
+from .seq import Seq

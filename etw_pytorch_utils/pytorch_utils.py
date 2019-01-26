@@ -1,4 +1,10 @@
-from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
+from __future__ import (
+    division,
+    absolute_import,
+    with_statement,
+    print_function,
+    unicode_literals,
+)
 import torch
 import torch.nn as nn
 from torch.autograd.function import InplaceFunction
@@ -16,31 +22,34 @@ if False:
 
 
 class SharedMLP(nn.Sequential):
-
-    def __init__(self,
-                 args,
-                 bn = False,
-                 activation=nn.ReLU(inplace=True),
-                 preact = False,
-                 first = False,
-                 name = ""):
+    def __init__(
+        self,
+        args,
+        bn=False,
+        activation=nn.ReLU(inplace=True),
+        preact=False,
+        first=False,
+        name="",
+    ):
         # type: (SharedMLP, List[int], bool, Any, bool, bool, AnyStr) -> None
         super(SharedMLP, self).__init__()
 
         for i in range(len(args) - 1):
             self.add_module(
-                name + 'layer{}'.format(i),
+                name + "layer{}".format(i),
                 Conv2d(
                     args[i],
                     args[i + 1],
                     bn=(not first or not preact or (i != 0)) and bn,
-                    activation=activation if (not first or not preact or
-                                              (i != 0)) else None,
-                    preact=preact))
+                    activation=activation
+                    if (not first or not preact or (i != 0))
+                    else None,
+                    preact=preact,
+                ),
+            )
 
 
 class _BNBase(nn.Sequential):
-
     def __init__(self, in_size, batch_norm=None, name=""):
         super(_BNBase, self).__init__()
         self.add_module(name + "bn", batch_norm(in_size))
@@ -50,43 +59,41 @@ class _BNBase(nn.Sequential):
 
 
 class BatchNorm1d(_BNBase):
-
-    def __init__(self, in_size,  name = ""):
+    def __init__(self, in_size, name=""):
         # type: (BatchNorm1d, int, AnyStr) -> None
         super(BatchNorm1d, self).__init__(in_size, batch_norm=nn.BatchNorm1d, name=name)
 
 
 class BatchNorm2d(_BNBase):
-
-    def __init__(self, in_size, name = ""):
+    def __init__(self, in_size, name=""):
         # type: (BatchNorm2d, int, AnyStr) -> None
         super(BatchNorm2d, self).__init__(in_size, batch_norm=nn.BatchNorm2d, name=name)
 
 
 class BatchNorm3d(_BNBase):
-
-    def __init__(self, in_size, name = ""):
+    def __init__(self, in_size, name=""):
         # type: (BatchNorm3d, int, AnyStr) -> None
         super(BatchNorm3d, self).__init__(in_size, batch_norm=nn.BatchNorm3d, name=name)
 
 
 class _ConvBase(nn.Sequential):
-
-    def __init__(self,
-                 in_size,
-                 out_size,
-                 kernel_size,
-                 stride,
-                 padding,
-                 dilation,
-                 activation,
-                 bn,
-                 init,
-                 conv=None,
-                 norm_layer=None,
-                 bias=True,
-                 preact=False,
-                 name=""):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        activation,
+        bn,
+        init,
+        conv=None,
+        norm_layer=None,
+        bias=True,
+        preact=False,
+        name="",
+    ):
         super(_ConvBase, self).__init__()
 
         bias = bias and (not bn)
@@ -97,7 +104,8 @@ class _ConvBase(nn.Sequential):
             stride=stride,
             padding=padding,
             dilation=dilation,
-            bias=bias)
+            bias=bias,
+        )
         init(conv_unit.weight)
         if bias:
             nn.init.constant_(conv_unit.bias, 0)
@@ -110,37 +118,38 @@ class _ConvBase(nn.Sequential):
 
         if preact:
             if bn:
-                self.add_module(name + 'normlayer', bn_unit)
+                self.add_module(name + "normlayer", bn_unit)
 
             if activation is not None:
-                self.add_module(name + 'activation', activation)
+                self.add_module(name + "activation", activation)
 
-        self.add_module(name + 'conv', conv_unit)
+        self.add_module(name + "conv", conv_unit)
 
         if not preact:
             if bn:
-                self.add_module(name + 'normlayer', bn_unit)
+                self.add_module(name + "normlayer", bn_unit)
 
             if activation is not None:
-                self.add_module(name + 'activation', activation)
+                self.add_module(name + "activation", activation)
 
 
 class Conv1d(_ConvBase):
-
-    def __init__(self,
-                 in_size,
-                 out_size,
-                 kernel_size= 1,
-                 stride = 1,
-                 padding = 0,
-                 dilation = 1,
-                 activation=nn.ReLU(inplace=True),
-                 bn = False,
-                 init=nn.init.kaiming_normal_,
-                 bias = True,
-                 preact = False,
-                 name = "",
-                 norm_layer=BatchNorm1d):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        kernel_size=1,
+        stride=1,
+        padding=0,
+        dilation=1,
+        activation=nn.ReLU(inplace=True),
+        bn=False,
+        init=nn.init.kaiming_normal_,
+        bias=True,
+        preact=False,
+        name="",
+        norm_layer=BatchNorm1d,
+    ):
         # type: (Conv1d, int, int, int, int, int, int, Any, bool, Any, bool, bool, AnyStr, _BNBase) -> None
         super(Conv1d, self).__init__(
             in_size,
@@ -156,25 +165,27 @@ class Conv1d(_ConvBase):
             norm_layer=norm_layer,
             bias=bias,
             preact=preact,
-            name=name)
+            name=name,
+        )
 
 
 class Conv2d(_ConvBase):
-
-    def __init__(self,
-                 in_size,
-                 out_size,
-                 kernel_size = (1, 1),
-                 stride = (1, 1),
-                 padding = (0, 0),
-                 dilation = (1, 1),
-                 activation=nn.ReLU(inplace=True),
-                 bn = False,
-                 init=nn.init.kaiming_normal_,
-                 bias = True,
-                 preact = False,
-                 name = "",
-                 norm_layer=BatchNorm2d):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        kernel_size=(1, 1),
+        stride=(1, 1),
+        padding=(0, 0),
+        dilation=(1, 1),
+        activation=nn.ReLU(inplace=True),
+        bn=False,
+        init=nn.init.kaiming_normal_,
+        bias=True,
+        preact=False,
+        name="",
+        norm_layer=BatchNorm2d,
+    ):
         # type: (Conv2d, int, int, Tuple[int, int], Tuple[int, int], Tuple[int, int], Tuple[int, int], Any, bool, Any, bool, bool, AnyStr, _BNBase) -> None
         super(Conv2d, self).__init__(
             in_size,
@@ -190,25 +201,27 @@ class Conv2d(_ConvBase):
             norm_layer=norm_layer,
             bias=bias,
             preact=preact,
-            name=name)
+            name=name,
+        )
 
 
 class Conv3d(_ConvBase):
-
-    def __init__(self,
-                 in_size,
-                 out_size,
-                 kernel_size = (1, 1, 1),
-                 stride = (1, 1, 1),
-                 padding = (0, 0, 0),
-                 dilation = (1, 1, 1),
-                 activation=nn.ReLU(inplace=True),
-                 bn = False,
-                 init=nn.init.kaiming_normal_,
-                 bias = True,
-                 preact = False,
-                 name = "",
-                 norm_layer=BatchNorm3d):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        kernel_size=(1, 1, 1),
+        stride=(1, 1, 1),
+        padding=(0, 0, 0),
+        dilation=(1, 1, 1),
+        activation=nn.ReLU(inplace=True),
+        bn=False,
+        init=nn.init.kaiming_normal_,
+        bias=True,
+        preact=False,
+        name="",
+        norm_layer=BatchNorm3d,
+    ):
         # type: (Conv3d, int, int, Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int], Any, bool, Any, bool, bool, AnyStr, _BNBase) -> None
         super(Conv3d, self).__init__(
             in_size,
@@ -224,19 +237,21 @@ class Conv3d(_ConvBase):
             norm_layer=norm_layer,
             bias=bias,
             preact=preact,
-            name=name)
+            name=name,
+        )
 
 
 class FC(nn.Sequential):
-
-    def __init__(self,
-                 in_size,
-                 out_size,
-                 activation=nn.ReLU(inplace=True),
-                 bn = False,
-                 init=None,
-                 preact = False,
-                 name = ""):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        activation=nn.ReLU(inplace=True),
+        bn=False,
+        init=None,
+        preact=False,
+        name="",
+    ):
         # type: (FC, int, int, Any, bool, Any, bool, AnyStr) -> None
         super(FC, self).__init__()
 
@@ -248,23 +263,22 @@ class FC(nn.Sequential):
 
         if preact:
             if bn:
-                self.add_module(name + 'bn', BatchNorm1d(in_size))
+                self.add_module(name + "bn", BatchNorm1d(in_size))
 
             if activation is not None:
-                self.add_module(name + 'activation', activation)
+                self.add_module(name + "activation", activation)
 
-        self.add_module(name + 'fc', fc)
+        self.add_module(name + "fc", fc)
 
         if not preact:
             if bn:
-                self.add_module(name + 'bn', BatchNorm1d(out_size))
+                self.add_module(name + "bn", BatchNorm1d(out_size))
 
             if activation is not None:
-                self.add_module(name + 'activation', activation)
+                self.add_module(name + "activation", activation)
 
 
 class _DropoutNoScaling(InplaceFunction):
-
     @staticmethod
     def _make_noise(input):
         return input.new().resize_as_(input)
@@ -274,8 +288,8 @@ class _DropoutNoScaling(InplaceFunction):
         if inplace:
             return None
         n = g.appendNode(
-            g.create("Dropout", [input]).f_("ratio", p).i_(
-                "is_test", not train))
+            g.create("Dropout", [input]).f_("ratio", p).i_("is_test", not train)
+        )
         real = g.appendNode(g.createSelect(n, 0))
         g.appendNode(g.createSelect(n, 1))
         return real
@@ -283,8 +297,9 @@ class _DropoutNoScaling(InplaceFunction):
     @classmethod
     def forward(cls, ctx, input, p=0.5, train=False, inplace=False):
         if p < 0 or p > 1:
-            raise ValueError("dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p))
+            raise ValueError(
+                "dropout probability has to be between 0 and 1, " "but got {}".format(p)
+            )
         ctx.p = p
         ctx.train = train
         ctx.inplace = inplace
@@ -318,7 +333,6 @@ dropout_no_scaling = _DropoutNoScaling.apply
 
 
 class _FeatureDropoutNoScaling(_DropoutNoScaling):
-
     @staticmethod
     def symbolic(input, p=0.5, train=False, inplace=False):
         return None
@@ -326,8 +340,8 @@ class _FeatureDropoutNoScaling(_DropoutNoScaling):
     @staticmethod
     def _make_noise(input):
         return input.new().resize_(
-            input.size(0), input.size(1), *repeat(1,
-                                                  input.dim() - 2))
+            input.size(0), input.size(1), *repeat(1, input.dim() - 2)
+        )
 
 
 feature_dropout_no_scaling = _FeatureDropoutNoScaling.apply
@@ -344,20 +358,15 @@ def group_model_params(model, **kwargs):
         else:
             decay_group.append(param)
 
-    assert len(list(
-        model.parameters())) == len(decay_group) + len(no_decay_group)
+    assert len(list(model.parameters())) == len(decay_group) + len(no_decay_group)
 
     return [
         dict(params=decay_group, **kwargs),
-        dict(params=no_decay_group, weight_decay=0.0, **kwargs)
+        dict(params=no_decay_group, weight_decay=0.0, **kwargs),
     ]
 
 
-def checkpoint_state(model=None,
-                     optimizer=None,
-                     best_prec=None,
-                     epoch=None,
-                     it=None):
+def checkpoint_state(model=None, optimizer=None, best_prec=None, epoch=None, it=None):
     optim_state = optimizer.state_dict() if optimizer is not None else None
     if model is not None:
         if isinstance(model, torch.nn.DataParallel):
@@ -368,54 +377,53 @@ def checkpoint_state(model=None,
         model_state = None
 
     return {
-        'epoch': epoch,
-        'it': it,
-        'best_prec': best_prec,
-        'model_state': model_state,
-        'optimizer_state': optim_state
+        "epoch": epoch,
+        "it": it,
+        "best_prec": best_prec,
+        "model_state": model_state,
+        "optimizer_state": optim_state,
     }
 
 
-def save_checkpoint(state,
-                    is_best,
-                    filename='checkpoint',
-                    bestname='model_best'):
-    filename = '{}.pth.tar'.format(filename)
+def save_checkpoint(state, is_best, filename="checkpoint", bestname="model_best"):
+    filename = "{}.pth.tar".format(filename)
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, '{}.pth.tar'.format(bestname))
+        shutil.copyfile(filename, "{}.pth.tar".format(bestname))
 
 
-def load_checkpoint(model=None, optimizer=None, filename='checkpoint'):
+def load_checkpoint(model=None, optimizer=None, filename="checkpoint"):
     filename = "{}.pth.tar".format(filename)
-    
+
     if os.path.isfile(filename):
         print("==> Loading from checkpoint '{}'".format(filename))
         checkpoint = torch.load(filename)
-        epoch = checkpoint['epoch']
-        it = checkpoint.get('it', 0.0)
-        best_prec = checkpoint['best_prec']
-        if model is not None and checkpoint['model_state'] is not None:
-            model.load_state_dict(checkpoint['model_state'])
-        if optimizer is not None and checkpoint['optimizer_state'] is not None:
-            optimizer.load_state_dict(checkpoint['optimizer_state'])
+        epoch = checkpoint["epoch"]
+        it = checkpoint.get("it", 0.0)
+        best_prec = checkpoint["best_prec"]
+        if model is not None and checkpoint["model_state"] is not None:
+            model.load_state_dict(checkpoint["model_state"])
+        if optimizer is not None and checkpoint["optimizer_state"] is not None:
+            optimizer.load_state_dict(checkpoint["optimizer_state"])
         print("==> Done")
         return it, epoch, best_prec
     else:
         print("==> Checkpoint '{}' not found".format(filename))
         return None
-    
+
+
 def variable_size_collate(pad_val=0, use_shared_memory=True):
     import collections
+
     _numpy_type_map = {
-        'float64': torch.DoubleTensor,
-        'float32': torch.FloatTensor,
-        'float16': torch.HalfTensor,
-        'int64': torch.LongTensor,
-        'int32': torch.IntTensor,
-        'int16': torch.ShortTensor,
-        'int8': torch.CharTensor,
-        'uint8': torch.ByteTensor,
+        "float64": torch.DoubleTensor,
+        "float32": torch.FloatTensor,
+        "float16": torch.HalfTensor,
+        "int64": torch.LongTensor,
+        "int32": torch.IntTensor,
+        "int16": torch.ShortTensor,
+        "int8": torch.CharTensor,
+        "uint8": torch.ByteTensor,
     }
 
     def wrapped(batch):
@@ -438,26 +446,30 @@ def variable_size_collate(pad_val=0, use_shared_memory=True):
                 out = batch[0].new(numel)
 
             out = out.view(
-                len(batch), max_len,
-                *[batch[0].size(i) for i in range(1, batch[0].dim())])
+                len(batch),
+                max_len,
+                *[batch[0].size(i) for i in range(1, batch[0].dim())]
+            )
             out.fill_(pad_val)
             for i in range(len(batch)):
-                out[i, 0:batch[i].size(0)] = batch[i]
+                out[i, 0 : batch[i].size(0)] = batch[i]
 
             return out
-        elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
-                and elem_type.__name__ != 'string_':
+        elif (
+            elem_type.__module__ == "numpy"
+            and elem_type.__name__ != "str_"
+            and elem_type.__name__ != "string_"
+        ):
             elem = batch[0]
-            if elem_type.__name__ == 'ndarray':
+            if elem_type.__name__ == "ndarray":
                 # array of string classes and object
-                if re.search('[SaUO]', elem.dtype.str) is not None:
+                if re.search("[SaUO]", elem.dtype.str) is not None:
                     raise TypeError(error_msg.format(elem.dtype))
 
                 return wrapped([torch.from_numpy(b) for b in batch])
             if elem.shape == ():  # scalars
-                py_type = float if elem.dtype.name.startswith('float') else int
-                return _numpy_type_map[elem.dtype.name](list(
-                    map(py_type, batch)))
+                py_type = float if elem.dtype.name.startswith("float") else int
+                return _numpy_type_map[elem.dtype.name](list(map(py_type, batch)))
         elif isinstance(batch[0], int):
             return torch.LongTensor(batch)
         elif isinstance(batch[0], float):
@@ -473,7 +485,7 @@ def variable_size_collate(pad_val=0, use_shared_memory=True):
     return wrapped
 
 
-class TrainValSplitter():
+class TrainValSplitter:
     r"""
         Creates a training and validation split to be used as the sampler in a pytorch DataLoader
     Parameters
@@ -486,23 +498,21 @@ class TrainValSplitter():
             Whether or not shuffle which data goes to which split
     """
 
-    def __init__(self,
-                 
-                 numel,
-                 percent_train,
-                 shuffled = False):
+    def __init__(self, numel, percent_train, shuffled=False):
         # type: (TrainValSplitter, int, float, bool) -> None
         indicies = np.array([i for i in range(numel)])
         if shuffled:
             np.random.shuffle(indicies)
 
         self.train = torch.utils.data.sampler.SubsetRandomSampler(
-            indicies[0:int(percent_train * numel)])
+            indicies[0 : int(percent_train * numel)]
+        )
         self.val = torch.utils.data.sampler.SubsetRandomSampler(
-            indicies[int(percent_train * numel):-1])
+            indicies[int(percent_train * numel) : -1]
+        )
 
 
-class CrossValSplitter():
+class CrossValSplitter:
     r"""
         Class that creates cross validation splits.  The train and val splits can be used in pytorch DataLoaders.  The splits can be updated
         by calling next(self) or using a loop:
@@ -518,7 +528,7 @@ class CrossValSplitter():
             Whether or not to shuffle which data goes in which fold
     """
 
-    def __init__(self,  numel, k_folds, shuffled= False):
+    def __init__(self, numel, k_folds, shuffled=False):
         # type: (CrossValSplitter, int, int, bool) -> None
         inidicies = np.array([i for i in range(numel)])
         if shuffled:
@@ -529,7 +539,8 @@ class CrossValSplitter():
 
         self.val = torch.utils.data.sampler.SubsetRandomSampler(self.folds[0])
         self.train = torch.utils.data.sampler.SubsetRandomSampler(
-            np.concatenate(self.folds[1:], axis=0))
+            np.concatenate(self.folds[1:], axis=0)
+        )
 
         self.metrics = {}
 
@@ -544,7 +555,8 @@ class CrossValSplitter():
         assert idx >= 0 and idx < len(self)
         self.val.inidicies = self.folds[idx]
         self.train.inidicies = np.concatenate(
-            self.folds[np.arange(len(self)) != idx], axis=0)
+            self.folds[np.arange(len(self)) != idx], axis=0
+        )
 
     def __next__(self):
         self.current_v_ind += 1
@@ -571,7 +583,6 @@ class CrossValSplitter():
 
 
 def set_bn_momentum_default(bn_momentum):
-
     def fn(m):
         if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
             m.momentum = bn_momentum
@@ -580,15 +591,11 @@ def set_bn_momentum_default(bn_momentum):
 
 
 class BNMomentumScheduler(object):
-
-    def __init__(self,
-                 model,
-                 bn_lambda,
-                 last_epoch=-1,
-                 setter=set_bn_momentum_default):
+    def __init__(self, model, bn_lambda, last_epoch=-1, setter=set_bn_momentum_default):
         if not isinstance(model, nn.Module):
-            raise RuntimeError("Class '{}' is not a PyTorch nn Module".format(
-                type(model).__name__))
+            raise RuntimeError(
+                "Class '{}' is not a PyTorch nn Module".format(type(model).__name__)
+            )
 
         self.model = model
         self.setter = setter
@@ -630,18 +637,25 @@ class Trainer(object):
         Name of file to output tensorboard_logger to
     """
 
-    def __init__(self,
-                 model,
-                 model_fn,
-                 optimizer,
-                 checkpoint_name="ckpt",
-                 best_name="best",
-                 lr_scheduler=None,
-                 bnm_scheduler=None,
-                 eval_frequency=-1,
-                 viz=None):
+    def __init__(
+        self,
+        model,
+        model_fn,
+        optimizer,
+        checkpoint_name="ckpt",
+        best_name="best",
+        lr_scheduler=None,
+        bnm_scheduler=None,
+        eval_frequency=-1,
+        viz=None,
+    ):
         self.model, self.model_fn, self.optimizer, self.lr_scheduler, self.bnm_scheduler = (
-            model, model_fn, optimizer, lr_scheduler, bnm_scheduler)
+            model,
+            model_fn,
+            optimizer,
+            lr_scheduler,
+            bnm_scheduler,
+        )
 
         self.checkpoint_name, self.best_name = checkpoint_name, best_name
         self.eval_frequency = eval_frequency
@@ -664,7 +678,8 @@ class Trainer(object):
                 w = None
 
             return np.average(
-                np.sum(num, axis=0) / (np.sum(denom, axis=0) + 1e-6), weights=w)
+                np.sum(num, axis=0) / (np.sum(denom, axis=0) + 1e-6), weights=w
+            )
         else:
             raise AssertionError("Unknown type: {}".format(type(v)))
 
@@ -692,10 +707,8 @@ class Trainer(object):
         total_loss = 0.0
         count = 1.0
         for i, data in tqdm.tqdm(
-                enumerate(d_loader, 0),
-                total=len(d_loader),
-                leave=False,
-                desc='val'):
+            enumerate(d_loader, 0), total=len(d_loader), leave=False, desc="val"
+        ):
             self.optimizer.zero_grad()
 
             _, loss, eval_res = self.model_fn(self.model, data, eval=True)
@@ -708,13 +721,15 @@ class Trainer(object):
 
         return total_loss / count, eval_dict
 
-    def train(self,
-              start_it,
-              start_epoch,
-              n_epochs,
-              train_loader,
-              test_loader=None,
-              best_loss=0.0):
+    def train(
+        self,
+        start_it,
+        start_epoch,
+        n_epochs,
+        train_loader,
+        test_loader=None,
+        best_loss=0.0,
+    ):
         r"""
            Call to begin training the model
 
@@ -732,12 +747,14 @@ class Trainer(object):
             Testing loss of the best model
         """
 
-        eval_frequency = (self.eval_frequency
-                          if self.eval_frequency > 0 else len(train_loader))
+        eval_frequency = (
+            self.eval_frequency if self.eval_frequency > 0 else len(train_loader)
+        )
 
         it = start_it
-        with tqdm.trange(start_epoch, n_epochs + 1, desc='epochs') as tbar, \
-                tqdm.tqdm(total=eval_frequency, leave=False, desc='train') as pbar:
+        with tqdm.trange(start_epoch, n_epochs + 1, desc="epochs") as tbar, tqdm.tqdm(
+            total=eval_frequency, leave=False, desc="train"
+        ) as pbar:
 
             for epoch in tbar:
                 for batch in train_loader:
@@ -749,7 +766,7 @@ class Trainer(object):
                     tbar.refresh()
 
                     if self.viz is not None:
-                        self.viz.update('train', it, res)
+                        self.viz.update("train", it, res)
 
                     if (it % eval_frequency) == 0:
                         pbar.close()
@@ -758,19 +775,22 @@ class Trainer(object):
                             val_loss, res = self.eval_epoch(test_loader)
 
                             if self.viz is not None:
-                                self.viz.update('val', it, res)
+                                self.viz.update("val", it, res)
 
                             is_best = val_loss < best_loss
                             best_loss = min(best_loss, val_loss)
                             save_checkpoint(
-                                checkpoint_state(self.model, self.optimizer,
-                                                 val_loss, epoch, it),
+                                checkpoint_state(
+                                    self.model, self.optimizer, val_loss, epoch, it
+                                ),
                                 is_best,
                                 filename=self.checkpoint_name,
-                                bestname=self.best_name)
+                                bestname=self.best_name,
+                            )
 
                         pbar = tqdm.tqdm(
-                            total=eval_frequency, leave=False, desc='train')
+                            total=eval_frequency, leave=False, desc="train"
+                        )
                         pbar.set_postfix(dict(total_it=it))
 
                     self.viz.flush()

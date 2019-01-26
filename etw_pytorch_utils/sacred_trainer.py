@@ -1,4 +1,10 @@
-from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
+from __future__ import (
+    division,
+    absolute_import,
+    with_statement,
+    print_function,
+    unicode_literals,
+)
 import torch
 import torch.nn as nn
 import numpy as np
@@ -15,7 +21,6 @@ if False:
 
 
 class _DefaultExCallback(object):
-
     def __init__(self):
         self.train_vals = {}
         self.train_emas = {}
@@ -23,17 +28,18 @@ class _DefaultExCallback(object):
 
     def __call__(self, ex, mode, k, v):
         # type: (_DefaultExCallback, sacred.Experiment, Any, Any, Any) -> None
-        if mode == 'train':
-            self.train_emas[k] = (
-                self.ema_beta * v +
-                (1.0 - self.ema_beta) * self.train_emas.get(k, v)
-            )
+        if mode == "train":
+            self.train_emas[k] = self.ema_beta * v + (
+                1.0 - self.ema_beta
+            ) * self.train_emas.get(k, v)
             self.train_vals[k] = self.train_vals.get(k, []) + [v]
-            ex.log_scalar('training.{k}'.format({'k': k}), self.train_emas[k])
+            ex.log_scalar("training.{k}".format({"k": k}), self.train_emas[k])
 
-        elif mode == 'val':
-            ex.log_scalar('val.{k}'.format({'k': k}), np.mean(np.array(v)))
-            ex.log_scalar('train.{k}'.format({'k':k}), np.mean(np.array(self.train_vals[k])))
+        elif mode == "val":
+            ex.log_scalar("val.{k}".format({"k": k}), np.mean(np.array(v)))
+            ex.log_scalar(
+                "train.{k}".format({"k": k}), np.mean(np.array(self.train_vals[k]))
+            )
             self.train_vals[k] = []
 
 
@@ -63,18 +69,22 @@ class SacredTrainer(object):
     """
 
     def __init__(
-            self,
+        self,
+        model,
+        model_fn,
+        optimizer,
+        lr_scheduler=None,
+        bnm_scheduler=None,
+        eval_frequency=-1,
+        ex=None,
+        checkpoint_dir=None,
+    ):
+        self.model, self.model_fn, self.optimizer, self.lr_scheduler, self.bnm_scheduler = (
             model,
             model_fn,
             optimizer,
-            lr_scheduler=None,
-            bnm_scheduler=None,
-            eval_frequency=-1,
-            ex=None,
-            checkpoint_dir=None
-    ):
-        self.model, self.model_fn, self.optimizer, self.lr_scheduler, self.bnm_scheduler = (
-            model, model_fn, optimizer, lr_scheduler, bnm_scheduler
+            lr_scheduler,
+            bnm_scheduler,
         )
         self.checkpoint_dir = checkpoint_dir
 
@@ -100,7 +110,6 @@ class SacredTrainer(object):
             else:
                 self.default_cb(self.ex, mode, k, v)
 
-
     def _train_it(self, it, batch):
         self.model.train()
 
@@ -124,8 +133,9 @@ class SacredTrainer(object):
         eval_dict = {}
         total_loss = 0.0
         count = 1.0
-        for i, data in tqdm.tqdm(enumerate(d_loader, 0), total=len(d_loader),
-                                 leave=False, desc='val'):
+        for i, data in tqdm.tqdm(
+            enumerate(d_loader, 0), total=len(d_loader), leave=False, desc="val"
+        ):
             self.optimizer.zero_grad()
 
             _, loss, eval_res = self.model_fn(self.model, data, eval=True)
@@ -139,15 +149,15 @@ class SacredTrainer(object):
         return total_loss / count, eval_dict
 
     def train(
-            self,
-            start_it,
-            start_epoch,
-            n_epochs,
-            train_loader,
-            test_loader=None,
-            best_loss=1e10
+        self,
+        start_it,
+        start_epoch,
+        n_epochs,
+        train_loader,
+        test_loader=None,
+        best_loss=1e10,
     ):
-    # type: (SacredTrainer, Any, int, int, torch.utils.data.DataLoader, torch.utils.data.DataLoader, float) -> float
+        # type: (SacredTrainer, Any, int, int, torch.utils.data.DataLoader, torch.utils.data.DataLoader, float) -> float
         r"""
            Call to begin training the model
 
@@ -166,13 +176,15 @@ class SacredTrainer(object):
         """
 
         eval_frequency = (
-            self.eval_frequency
-            if self.eval_frequency > 0 else len(train_loader)
+            self.eval_frequency if self.eval_frequency > 0 else len(train_loader)
         )
 
         it = start_it
-        with tqdm.trange(start_epoch, n_epochs, desc='epochs', dynamic_ncols=True) as tbar, \
-                tqdm.tqdm(total=eval_frequency, leave=False, desc='train', dynamic_ncols=True) as pbar:
+        with tqdm.trange(
+            start_epoch, n_epochs, desc="epochs", dynamic_ncols=True
+        ) as tbar, tqdm.tqdm(
+            total=eval_frequency, leave=False, desc="train", dynamic_ncols=True
+        ) as pbar:
 
             for epoch in tbar:
                 for batch in train_loader:
@@ -184,7 +196,7 @@ class SacredTrainer(object):
                     tbar.refresh()
 
                     if self.ex is not None:
-                        self._update('train', res)
+                        self._update("train", res)
 
                     if (it % eval_frequency) == 0:
                         pbar.close()
@@ -193,35 +205,32 @@ class SacredTrainer(object):
                             val_loss, res = self.eval_epoch(test_loader)
 
                             if self.ex is not None:
-                                self._update('val', res)
+                                self._update("val", res)
 
                             if self.checkpoint_dir is not None:
                                 is_best = val_loss < best_loss
                                 best_loss = min(val_loss, best_loss)
 
                                 state = checkpoint_state(
-                                        self.model, self.optimizer, val_loss, epoch,
-                                        it
-                                    )
+                                    self.model, self.optimizer, val_loss, epoch, it
+                                )
 
-                                name = osp.join(self.checkpoint_dir, 'checkpoint.pt')
+                                name = osp.join(self.checkpoint_dir, "checkpoint.pt")
                                 torch.save(state, name)
                                 if self.ex is not None:
                                     self.ex.add_artifact(name)
 
                                 if is_best:
-                                    name = osp.join(self.checkpoint_dir, 'best.pt')
+                                    name = osp.join(self.checkpoint_dir, "best.pt")
                                     torch.save(state, name)
                                     if self.ex is not None:
                                         self.ex.add_artifact(name)
 
-
-
-
-
-
                         pbar = tqdm.tqdm(
-                            total=eval_frequency, leave=False, desc='train', dynamic_ncols=True
+                            total=eval_frequency,
+                            leave=False,
+                            desc="train",
+                            dynamic_ncols=True,
                         )
                         pbar.set_postfix(dict(total_it=it))
 

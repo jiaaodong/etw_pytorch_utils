@@ -1,4 +1,10 @@
-from __future__ import division, absolute_import, with_statement, print_function, unicode_literals
+from __future__ import (
+    division,
+    absolute_import,
+    with_statement,
+    print_function,
+    unicode_literals,
+)
 import numpy as np
 import visdom
 import time
@@ -7,57 +13,56 @@ import pprint
 
 
 class VisdomObserver(RunObserver):
-
-    def __init__(
-            self, env_name='main', *, server='http://localhost', port=8097
-    ):
+    def __init__(self, env_name="main", *, server="http://localhost", port=8097):
         super(VisdomObserver, self).__init__()
         self.env_name, self.server, self.port = (env_name, server, port)
 
     def started_event(
-            self, ex_info, command, host_info, start_time, config, meta_info,
-            _id
+        self, ex_info, command, host_info, start_time, config, meta_info, _id
     ):
-        if 'env_name' in config:
-            self.env_name = config['env_name']
-        print('=====>')
-        print('Initializing visdom env [{}]'.format(self.env_name))
-        print('server: {}, port: {}'.format(self.server, self.port))
-
+        if "env_name" in config:
+            self.env_name = config["env_name"]
+        print("=====>")
+        print("Initializing visdom env [{}]".format(self.env_name))
+        print("server: {}, port: {}".format(self.server, self.port))
 
         self.viz = visdom.Visdom(
             server=self.server,
             port=self.port,
             env=self.env_name,
-            use_incoming_socket=False
+            use_incoming_socket=False,
         )
         self.wins = {}
-        print('<=====')
+        print("<=====")
 
         self.viz.text(
-            pprint.pformat((
-                dict(host_info=host_info, start_time=start_time, config=config)
-            )),
-            win=None
+            pprint.pformat(
+                (dict(host_info=host_info, start_time=start_time, config=config))
+            ),
+            win=None,
         )
 
     def log_metrics(self, metrics_by_name, info):
         for key in metrics_by_name:
-            mode, metric_name = key.split('.')
-            if mode == 'training':
+            mode, metric_name = key.split(".")
+            if mode == "training":
                 self._append_element(
-                    'training', metrics_by_name[key]['steps'],
-                    metrics_by_name[key]['values'], metric_name, 'iter'
+                    "training",
+                    metrics_by_name[key]["steps"],
+                    metrics_by_name[key]["values"],
+                    metric_name,
+                    "iter",
                 )
-            elif mode == 'val' or mode == 'train':
+            elif mode == "val" or mode == "train":
                 self._append_element(
-                    metric_name, metrics_by_name[key]['steps'],
-                    metrics_by_name[key]['values'], mode, 'iter'
+                    metric_name,
+                    metrics_by_name[key]["steps"],
+                    metrics_by_name[key]["values"],
+                    mode,
+                    "iter",
                 )
 
-    def _append_element(
-            self, window_name, x, y, line_name, xlabel='iterations'
-    ):
+    def _append_element(self, window_name, x, y, line_name, xlabel="iterations"):
         r"""
             Appends an element to a line
 
@@ -80,8 +85,8 @@ class VisdomObserver(RunObserver):
                 Y=np.array(y),
                 win=self.wins[window_name],
                 name=line_name,
-                update='append',
-                opts=dict(showlegend=True)
+                update="append",
+                opts=dict(showlegend=True),
             )
         else:
             self.wins[window_name] = self.viz.line(
@@ -96,6 +101,6 @@ class VisdomObserver(RunObserver):
                     marginbottom=30,
                     margintop=30,
                     legend=[line_name],
-                    showlegend=True
-                )
+                    showlegend=True,
+                ),
             )

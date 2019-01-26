@@ -3,3 +3,6 @@ __pycache__
 build/
 dist/
 **/*.pyc
+.tox/
+poetry.lock
+pip-*
