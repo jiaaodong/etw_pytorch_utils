@@ -765,7 +765,7 @@ class Trainer(object):
                     it += 1
 
                     pbar.update()
-                    pbar.set_postfix(dict(total_it=it))
+                    pbar.set_postfix(dict(total_it=it,loss="{:.5f}".format(res['loss'])))
                     tbar.refresh()
 
                     if self.viz is not None:
