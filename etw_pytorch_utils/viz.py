@@ -172,6 +172,7 @@ class CmdLineViz(object):
             self.add_callback(name, cb)
 
     def append_element(self, window_name, x, y, line_name):
+                            # key values # iter # averaged result # 'train or val'
         if not window_name in self.flush_vals:
             self.flush_vals[window_name] = collections.OrderedDict()
 
@@ -180,7 +181,7 @@ class CmdLineViz(object):
     def flush(self):
         if len(self.flush_vals) == 0:
             return
-
+        ## This function is used for the output of a well-structured text
         longest_win_name = max(map(lambda k: len(k), self.flush_vals.keys()))
 
         tqdm.write("=== Training Progress ===")

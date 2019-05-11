@@ -684,7 +684,8 @@ class Trainer(object):
             raise AssertionError("Unknown type: {}".format(type(v)))
 
     def _train_it(self, it, batch):
-        self.model.train()
+        self.model.train() ## Set the `mode` of the model to be `train`, therefore some layers that are 
+                           ## dependant on training and validation are different: Dropping layers 
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step(it)
@@ -695,8 +696,8 @@ class Trainer(object):
         self.optimizer.zero_grad()
         _, loss, eval_res = self.model_fn(self.model, batch)
 
-        loss.backward()
-        self.optimizer.step()
+        loss.backward()     ##### calculate the gradient from loss to the parameters 
+        self.optimizer.step() ### update the parameters according to certain criteria 
 
         return eval_res
 
@@ -717,8 +718,10 @@ class Trainer(object):
             count += 1
             for k, v in eval_res.items():
                 if v is not None:
-                    eval_dict[k] = eval_dict.get(k, []) + [v]
-
+                    # eval_dict[k] = eval_dict.get(k, []) + [v] ### Use `get` method to get the value by key,
+                    eval_dict[k] = [v] ## Only keep the last value 
+                                                              ### If the key doesn't exist, the default return is []
+                                                              ### This operation is going to concatenate the resuelts from each batch 
         return total_loss / count, eval_dict
 
     def train(
@@ -754,7 +757,7 @@ class Trainer(object):
         it = start_it
         with tqdm.trange(start_epoch, n_epochs + 1, desc="epochs") as tbar, tqdm.tqdm(
             total=eval_frequency, leave=False, desc="train"
-        ) as pbar:
+        ) as pbar: ######### THIS IS THE PROGRESS BAR FOR EPOCHS AND TRAINING USING PCAKGACGE tqdm
 
             for epoch in tbar:
                 for batch in train_loader:
