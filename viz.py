@@ -138,7 +138,7 @@ class _DefaultCmdLineCallback(object):
 
     def __call__(self, viz, mode, it, k, v):
         if mode == "train":
-            self.train_vals[k] = self.train_vals.get(k, []) + [v]
+            self.train_vals[k] = [v]
 
         elif mode == "val":
             viz.append_element(k, it, np.mean(np.array(self.train_vals[k])), "train")
